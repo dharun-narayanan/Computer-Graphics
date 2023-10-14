@@ -178,7 +178,9 @@ const int MS_PER_CYCLE = 10000;		// 10000 milliseconds = 10 seconds
 int		ActiveButton;			// current button that is down
 GLuint	AxesList;				// list to hold the axes
 int		AxesOn;					// != 0 means to draw the axes
-GLuint	HorseList;				// object display list
+GLuint	BoxList;				// object display list
+GLuint  SunList;
+GLuint  MoonList;
 int		DebugOn;				// != 0 means to print debugging info
 int		DepthCueOn;				// != 0 means to use intensity depth cueing
 int		DepthBufferOn;			// != 0 means to use the z-buffer
@@ -279,7 +281,6 @@ MulArray3(float factor, float a, float b, float c )
 //#include "loadobjfile.cpp"
 //#include "keytime.cpp"
 //#include "glslprogram.cpp"
-#include "CarouselHorse0.10.cpp"
 
 
 // main program:
@@ -447,14 +448,16 @@ Display( )
 
 	// draw the box object by calling up its display list:
 
-	glCallList( HorseList );
+	glCallList( BoxList );
+	glCallList( SunList );
+	glCallList(MoonList);
 
 #ifdef DEMO_Z_FIGHTING
 	if( DepthFightingOn != 0 )
 	{
 		glPushMatrix( );
 			glRotatef( 90.f,   0.f, 1.f, 0.f );
-			glCallList( HorseList );
+			glCallList( BoxList );
 		glPopMatrix( );
 	}
 #endif
@@ -820,66 +823,341 @@ InitLists( )
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting InitLists.\n");
 
-	int NUMSEGS = 40;
-	float dang = 2. * M_PI / (float)(NUMSEGS - 1);
-	float ang = 0.;
-	float RADIUS = 5.0;
-
+	float dx = BOXSIZE / 2.f;
+	float dy = BOXSIZE / 2.f;
+	float dz = BOXSIZE / 2.f;
+	const int numSlices = 30;
+	const int numStacks = 30;
+	const float radius = 0.6;
 	glutSetWindow( MainWindow );
-	HorseList = glGenLists(1);
-	glNewList(HorseList, GL_COMPILE);
-	glPushMatrix();
 
-	glTranslatef(5.f, 0.f, 0.f);
-	glRotatef(90.f, 0., 1., 0.);
-	glTranslatef(0.f, -1.1f, 0.f);
-	glBegin(GL_TRIANGLES);
-	for (int i = 0; i < HORSEntris; i++)
-	{
-		struct point p0 = HORSEpoints[HORSEtris[i].p0];
-		struct point p1 = HORSEpoints[HORSEtris[i].p1];
-		struct point p2 = HORSEpoints[HORSEtris[i].p2];
+	// create the object:
 
-		// fake "lighting" from above:
+	MoonList = glGenLists(2);
+	glNewList(MoonList, GL_COMPILE);
 
-		float p01[3], p02[3], n[3];
-		p01[0] = p1.x - p0.x;
-		p01[1] = p1.y - p0.y;
-		p01[2] = p1.z - p0.z;
-		p02[0] = p2.x - p0.x;
-		p02[1] = p2.y - p0.y;
-		p02[2] = p2.z - p0.z;
-		Cross(p01, p02, n);
-		Unit(n, n);
-		n[1] = (float)fabs(n[1]);
-		// simulating a glColor3f( 1., 1., 0. ) = yellow:
-		glColor3f(1.f * n[1], 1.f * n[1], 0.f * n[1]);
+	glTranslatef(0., -6., 0.);
+	glColor3f(0.9, 1., 1.);
 
-		glVertex3f(p0.x, p0.y, p0.z);
-		glVertex3f(p1.x, p1.y, p1.z);
-		glVertex3f(p2.x, p2.y, p2.z);
+	for (int i = 0; i < numStacks; i++) {
+		float phi1 = M_PI * static_cast<float>(i) / numStacks;	
+		float phi2 = M_PI * static_cast<float>(i + 1) / numStacks;
+
+		glBegin(GL_QUAD_STRIP);
+		for (int j = 0; j <= numSlices; j++) {
+			float theta = 2 * M_PI * static_cast<float>(j) / numSlices;
+
+			float x1 = radius * sin(phi1) * cos(theta);
+			float y1 = radius * sin(phi1) * sin(theta);
+			float z1 = radius * cos(phi1);
+
+			float x2 = radius * sin(phi2) * cos(theta);
+			float y2 = radius * sin(phi2) * sin(theta);
+			float z2 = radius * cos(phi2);
+
+			glVertex3f(x1, y1, z1);
+			glVertex3f(x2, y2, z2);
+		}
+		glEnd();
 	}
-	glEnd();
-	glPopMatrix();
-
-	glPushMatrix();
-	glBegin(GL_LINE_LOOP);
-	glColor3f(1.0, 0., 0.);
-	for (int i = 0; i < NUMSEGS; i++)
-	{
-		glVertex3f(RADIUS * cos(ang), 0., RADIUS * sin(ang));
-		ang += dang;
-	} glEnd();
-	glPopMatrix();
 
 	glEndList();
+
+	
+	SunList = glGenLists(2);
+	glNewList(SunList, GL_COMPILE);
+
+	glTranslatef(3, 3, -1);
+	glColor3f(0.9, 0.9, 0);
+
+	for (int i = 0; i < numStacks; i++) {
+		float phi1 = M_PI * static_cast<float>(i) / numStacks;
+		float phi2 = M_PI * static_cast<float>(i + 1) / numStacks;
+
+		glBegin(GL_QUAD_STRIP);
+		for (int j = 0; j <= numSlices; j++) {
+			float theta = 2 * M_PI * static_cast<float>(j) / numSlices;
+
+			float x1 = radius * sin(phi1) * cos(theta);
+			float y1 = radius * sin(phi1) * sin(theta);
+			float z1 = radius * cos(phi1);
+
+			float x2 = radius * sin(phi2) * cos(theta);
+			float y2 = radius * sin(phi2) * sin(theta);
+			float z2 = radius * cos(phi2);
+
+			glVertex3f(x1, y1, z1);
+			glVertex3f(x2, y2, z2);
+		}
+		glEnd();
+
+	}
+
+	glEndList();
+
+
+	BoxList = glGenLists( 1 );
+	glNewList( BoxList, GL_COMPILE );
+
+	glColor3f(1.0, 0.0, 0.0); // Set line color to black
+
+	// Define the spacing and size of the mesh
+	float spacing = 0.2; // Spacing between lines
+	int numLines = 21;   // Number of lines
+	float halfSize = spacing * numLines / 2.0;
+
+	// Draw lines normal to the y-axis
+	for (int i = -numLines; i <= numLines; i++) {
+		float yPos = i * spacing; // Calculate the y-coordinate
+
+		glBegin(GL_LINES);
+		glVertex3f(-halfSize, 4.0, yPos);
+		glVertex3f(halfSize, 4.0, yPos);
+
+		glVertex3f(-halfSize, -4.0, yPos);
+		glVertex3f(halfSize, -4.0, yPos);
+		glEnd();
+	}
+
+	glColor3f(1.0, 0.6, 1.0); // Set line color to black
+
+	// Define the spacing and size of the mesh
+	float spacing1 = 0.1; // Spacing between lines
+	int numLines1 = 42;   // Number of lines
+	float halfSize1 = spacing * numLines / 2.0;
+
+	// Draw lines normal to the y-axis
+	for (int i = -numLines1; i <= numLines1; i++) {
+		float yPos = i * spacing1; // Calculate the y-coordinate
+
+		glBegin(GL_LINES);
+		glVertex3f(-halfSize1, 4.0, yPos);
+		glVertex3f(halfSize1, 4.0, yPos);
+
+		glVertex3f(-halfSize1, -4.0, yPos);
+		glVertex3f(halfSize1, -4.0, yPos);
+		glEnd();
+	}
+
+	glColor3f(0.7, 0.7, 0.7); // Gray color
+	glutSolidSphere(1.0, 50, 50);
+
+	// UFO top dome (a half sphere)
+	glPushMatrix();
+	glTranslatef(0.0, 0.5, 0.0); // Position the dome on top of the body
+	glutSolidSphere(0.5, 50, 50);
+	glPopMatrix();
+
+	// UFO bottom dome (a half sphere)
+	glPushMatrix();
+	glTranslatef(0.0, -0.5, 0.0); // Position the dome under the body
+	glutSolidSphere(0.5, 50, 50);
+	glPopMatrix();
+
+	// UFO lights (small spheres)
+	glColor3f(1.0, 0.0, 0.0); // Red color for lights
+	glPushMatrix();
+	glTranslatef(-0.7, 0.7, 0.7); // Position the first light
+	glutSolidSphere(0.1, 20, 20);
+	glPopMatrix();
+
+	glColor3f(0.0, 0.0, 1.0); // Blue color for lights
+	glPushMatrix();
+	glTranslatef(0.7, 0.7, 0.7); // Position the second light
+	glutSolidSphere(0.1, 20, 20);
+	glPopMatrix();
+
+
+	glBegin(GL_QUADS);
+	glColor3f(0.2, 0.2, 0.2); // Set the color for the wall
+
+	// Define the vertices of the wall as a quad
+	glVertex3f(-3 + -dx / 3, -dy / 3, -2.5 + -dz / 3); // Bottom-left corner
+	glVertex3f(3 + dx / 3, -dy / 3, -2.5 + -dz / 3);   // Bottom-right corner
+	glVertex3f(3 + dx / 3, 3 * dy, -2.5 + -dz / 3);    // Top-right corner
+	glVertex3f(-3 + -dx / 3, 3 * dy, -2.5 + -dz / 3);  // Top-left corner
+
+	glVertex3f(-3 + -dx / 3, -dy / 3, -2.9 + -dz / 3); // Bottom-left corner
+	glVertex3f(3 + dx / 3, -dy / 3, -2.9 + -dz / 3);   // Bottom-right corner
+	glVertex3f(3 + dx / 3, 3 * dy, -2.9 + -dz / 3);    // Top-right corner
+	glVertex3f(-3 + -dx / 3, 3 * dy, -2.9 + -dz / 3);  // Top-left corner
+
+	glVertex3f(-3 + -dx / 3, -dy / 3, -2.5 + -dz / 3); // Bottom-left corner
+	glVertex3f(3 + dx / 3, -dy / 3, -2.5 + -dz / 3);   // Bottom-right corner
+	glVertex3f(3 + dx / 3, 3 * -dy, -2.5 + -dz / 3);    // Top-right corner
+	glVertex3f(-3 + -dx / 3, 3 * -dy, -2.5 + -dz / 3);
+
+	glVertex3f(-3 + -dx / 3, -dy / 3, -2.9 + -dz / 3); // Bottom-left corner
+	glVertex3f(3 + dx / 3, -dy / 3, -2.9 + -dz / 3);   // Bottom-right corner
+	glVertex3f(3 + dx / 3, 3 * -dy, -2.9 + -dz / 3);    // Top-right corner
+	glVertex3f(-3 + -dx / 3, 3 * -dy, -2.9 + -dz / 3);
+
+	glVertex3f(-3 + -dx / 3, -dy / 3, -2.5 + -dz / 3); // Bottom-left corner
+	glVertex3f(-3 + -dx / 3, 3 * dy, -2.5 + -dz / 3);  // Top-left corner
+	glVertex3f(-3 + -dx / 3, -dy / 3, -2.9 + -dz / 3); // Bottom-left corner
+	glVertex3f(-3 + -dx / 3, 3 * dy, -2.9 + -dz / 3);  // Top-left corner
+
+	glEnd();
+
+	glBegin(GL_QUADS);
+	glColor3f(0.6, 0.3, 0.1);  // Set the color for the arch
+
+	// Define vertices of the arch using quads
+	for (int i = 0; i < 360; i += 10) {
+		float angle1 = i * 3.14159265358979323846 / 180.0;
+		float angle2 = (i + 10) * 3.14159265358979323846 / 180.0;
+
+		// Define vertices of a quad to create an arch
+		glVertex3f(cos(angle1), 4. + 0.0, sin(angle1));
+		glVertex3f(cos(angle1), 4. + 0.2, sin(angle1));
+		glVertex3f(cos(angle2), 4. + 0.2, sin(angle2));
+		glVertex3f(cos(angle2), 4. + 0.0, sin(angle2));
+
+		glVertex3f(cos(angle1), -4. + 0.0, sin(angle1));
+		glVertex3f(cos(angle1), -4. + 0.2, sin(angle1));
+		glVertex3f(cos(angle2), -4. + 0.2, sin(angle2));
+		glVertex3f(cos(angle2), -4. + 0.0, sin(angle2));
+	}
+
+	glEnd();
+
+	glBegin(GL_QUADS);
+	glColor3f(0.6, 0.3, 0.1);  // Set the color for the arch
+
+	// Define vertices of the arch using quads
+	for (int i = 0; i < 360; i += 10) {
+		float angle1 = i * 3.14159265358979323846 / 180.0;
+		float angle2 = (i + 10) * 3.14159265358979323846 / 180.0;
+
+		// Define vertices of a quad to create an arch
+		glVertex3f(cos(angle1), 3. + 0.0, sin(angle1));
+		glVertex3f(cos(angle1), 3. + 0.2, sin(angle1));
+		glVertex3f(cos(angle2), 3. + 0.2, sin(angle2));
+		glVertex3f(cos(angle2), 3. + 0.0, sin(angle2));
+
+		glVertex3f(cos(angle1), -3. + 0.0, sin(angle1));
+		glVertex3f(cos(angle1), -3. + 0.2, sin(angle1));
+		glVertex3f(cos(angle2), -3. + 0.2, sin(angle2));
+		glVertex3f(cos(angle2), -3. + 0.0, sin(angle2));
+	}
+
+	glEnd();
+
+
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.9, 0.5, 0.1);
+	glVertex3f(0.5+4 * dx / 3, -dy / 3, 1.5 + dz / 3);
+	glVertex3f(0.5+4 * dx / 3, -dy / 3, -1.5 + -dz / 3);
+	glVertex3f(0, 3 * -dy, 0);
+	glEnd();
+
+
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.9, 0.5, 0.1);
+	glVertex3f(0.5+4 * dx / 3, dy / 3, -1.5 + -dz / 3);
+	glVertex3f(0.5+4 * dx / 3, dy / 3, 1.5 + dz / 3);
+	glVertex3f(0, 3 * dy, 0);
+	glEnd();
+
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.9, 0.5, 0.1);
+	glVertex3f(-0.5 + 4 * -dx / 3, -dy / 3, 1.5 + dz / 3);
+	glVertex3f(-0.5 + 4 * -dx / 3, -dy / 3, -1.5 + -dz / 3);
+	glVertex3f(0, 3 * -dy, 0);
+	glEnd();
+
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.9, 0.5, 0.1);
+	glVertex3f(-0.5+4 * -dx / 3, dy / 3, 1.5 + dz / 3);
+	glVertex3f(-0.5+4 * -dx / 3, dy / 3, -1.5 + -dz / 3);
+	glVertex3f(0, 3 * dy, 0);
+	glEnd();
+
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.9, 0.5, 0.1);
+	glVertex3f(-1.5 + -dx / 3, -dy / 3, 0.5 + 4 * dz / 3);
+	glVertex3f(1.5 + dx / 3, -dy / 3, 0.5 + 4 * dz / 3);
+	glVertex3f(0, 3 * -dy, 0);
+	glEnd();
+
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.9, 0.5, 0.1);
+	glVertex3f(1.5 + dx / 3, dy / 3, 0.5 + 4 * dz / 3);
+	glVertex3f(-1.5 + -dx / 3, dy / 3, 0.5 + 4 * dz / 3);
+	glVertex3f(0, 3 * dy, 0);
+	glEnd();
+
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.9, 0.5, 0.1);
+	glVertex3f(-1.5 + -dx / 3, -dy / 3, -0.5 + 4 * -dz / 3);
+	glVertex3f(1.5 + dx / 3, -dy / 3, -0.5 + 4 * -dz / 3);
+	glVertex3f(0, 3 * -dy, 0);
+	glEnd();
+
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.9, 0.5, 0.1);
+	glVertex3f(-1.5 + -dx / 3, dy / 3, -0.5 + 4 * -dz / 3);
+	glVertex3f(1.5 + dx / 3, dy / 3, -0.5 + 4 * -dz / 3);
+	glVertex3f(0, 3 * dy, 0);
+	glEnd();
+
+	glBegin(GL_QUADS);
+
+	glColor3f(0.1, 0., 0.2);
+
+	glNormal3f(1., 0., 0.);
+	glVertex3f(2 + 4 * dx / 3, -dy / 3, 3 + dz / 3);
+	glVertex3f(2 + 4 * dx / 3, -dy / 3, -3 + -dz / 3);
+	glVertex3f(2 + 4 * dx / 3, dy / 3, -3 + -dz / 3);
+	glVertex3f(2 + 4 * dx / 3, dy / 3, 3 + dz / 3);
+
+	glNormal3f(-1., 0., 0.);
+	glVertex3f(-2 + 4 * -dx / 3, -dy / 3, 3 + dz / 3);
+	glVertex3f(-2 + 4 * -dx / 3, dy / 3, 3 + dz / 3);
+	glVertex3f(-2 + 4 * -dx / 3, dy / 3, -3 + -dz / 3);
+	glVertex3f(-2 + 4 * -dx / 3, -dy / 3, -3 + -dz / 3);
+
+	glColor3f(0., 0.6, 0.2);
+
+	glNormal3f(0., 1., 0.);
+	glVertex3f(-3 + -dx / 3, dy / 3, 3 + dz / 3);
+	glVertex3f(3 + dx / 3, dy / 3, 3 + dz / 3);
+	glVertex3f(3 + dx / 3, dy / 3, -3 + -dz / 3);
+	glVertex3f(-3 + -dx / 3, dy / 3, -3 + -dz / 3);
+
+	glNormal3f(0., -1., 0.);
+	glVertex3f(-3 + -dx / 3, -dy / 3, 3 + dz / 3);
+	glVertex3f(-3 + -dx / 3, -dy / 3, -3 + -dz / 3);
+	glVertex3f(3 + dx / 3, -dy / 3, -3 + -dz / 3);
+	glVertex3f(3 + dx / 3, -dy / 3, 3 + dz / 3);
+
+	glColor3f(0.1, 0., 0.2);
+
+	glNormal3f(0., 0., 1.);
+	glVertex3f(-3 + -dx / 3, -dy / 3, 2 + 4 * dz / 3);
+	glVertex3f(3 + dx / 3, -dy / 3, 2 + 4 * dz / 3);
+	glVertex3f(3 + dx / 3, dy / 3, 2 + 4 * dz / 3);
+	glVertex3f(-3 + -dx / 3, dy / 3, 2 + 4 * dz / 3);
+
+	glNormal3f(0., 0., -1.);
+	glVertex3f(-3 + -dx / 3, -dy / 3, -2 + 4 * -dz / 3);
+	glVertex3f(-3 + -dx / 3, dy / 3, -2 + 4 * -dz / 3);
+	glVertex3f(3 + dx / 3, dy / 3, -2 + 4 * -dz / 3);
+	glVertex3f(3 + dx / 3, -dy / 3, -2 + 4 * -dz / 3);
+
+
+	glEnd();
+
+	
+	glEndList( );
+
 
 	// create the axes:
 
 	AxesList = glGenLists( 1 );
 	glNewList( AxesList, GL_COMPILE );
 		glLineWidth( AXES_WIDTH );
-			Axes( 2.5 );
+			Axes( 4.5 );
 		glLineWidth( 1.5 );
 	glEndList( );
 }
