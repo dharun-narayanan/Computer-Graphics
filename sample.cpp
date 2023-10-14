@@ -329,6 +329,10 @@ main( int argc, char *argv[ ] )
 // this is typically where animation parameters are set
 //
 // do not call Display( ) from here -- let glutPostRedisplay( ) do it
+float CircleRadius = 5.0f;  // Radius of the circular path
+float AnimationSpeed = 30.0f;  // Speed of animation
+float AnimationAngle = 0.0f;  // Current angle for animation
+
 
 void
 Animate( )
@@ -340,7 +344,24 @@ Animate( )
 	Time = (float)ms / (float)MS_PER_CYCLE;		// makes the value of Time between 0. and slightly less than 1.
 
 	// for example, if you wanted to spin an object in Display( ), you might call: glRotatef( 360.f*Time,   0., 1., 0. );
+	AnimationAngle += AnimationSpeed * 0.01f;  // Adjust the 0.01 factor for animation speed
 
+	// If the angle exceeds 360 degrees, wrap it around
+	if (AnimationAngle >= 360.0f)
+		AnimationAngle -= 360.0f;
+
+	// Calculate the new position of the object on the circle
+	float posX = CircleRadius * cosf(AnimationAngle * M_PI / 180.0f);
+	float posZ = CircleRadius * sinf(AnimationAngle * M_PI / 180.0f);
+
+	// Update the object's position and rotation
+	glPushMatrix();
+	glTranslatef(posX, 0.0f, posZ);
+	glRotatef(AnimationAngle, 0.0f, 1.0f, 0.0f);
+
+	// Draw the object or perform your animation here
+
+	glPopMatrix();
 	// force a call to Display( ) next time it is convenient:
 
 	glutSetWindow( MainWindow );
@@ -829,8 +850,9 @@ InitLists( )
 	HorseList = glGenLists(1);
 	glNewList(HorseList, GL_COMPILE);
 	glPushMatrix();
+	
 
-	glTranslatef(5.f, 0.f, 0.f);
+	glTranslatef(5.f, 0, 0.f);
 	glRotatef(90.f, 0., 1., 0.);
 	glTranslatef(0.f, -1.1f, 0.f);
 	glBegin(GL_TRIANGLES);
