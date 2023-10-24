@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -87,6 +87,8 @@ const float SCROLL_WHEEL_CLICK_FACTOR = 5.f;
 const int LEFT = 4;
 const int MIDDLE = 2;
 const int RIGHT = 1;
+bool Frozen;
+int viewtype = 0;
 
 
 // which projection:
@@ -97,6 +99,11 @@ enum Projections
 	PERSP
 };
 
+enum Views
+{
+	INSIDE,
+	OUTSIDE
+};
 
 // which button:
 
@@ -185,6 +192,9 @@ int		DepthCueOn;				// != 0 means to use intensity depth cueing
 int		DepthBufferOn;			// != 0 means to use the z-buffer
 int		DepthFightingOn;		// != 0 means to force the creation of z-fighting
 GLuint	HorseList;				// object display list
+GLuint	HorseList1;
+GLuint	HorseList2;
+GLuint	HorseList3;
 GLuint	CircleList;
 int		MainWindow;				// window id for main graphics window
 float	Scale;					// scaling factor
@@ -206,6 +216,7 @@ void	DoDepthBufferMenu(int);
 void	DoDepthFightingMenu(int);
 void	DoDepthMenu(int);
 void	DoDebugMenu(int);
+void	DoViewMenu(int);
 void	DoMainMenu(int);
 void	DoProjectMenu(int);
 void	DoRasterString(float, float, float, char*);
@@ -227,6 +238,8 @@ void			Cross(float[3], float[3], float[3]);
 float			Dot(float[3], float[3]);
 float			Unit(float[3], float[3]);
 float			Unit(float[3]);
+const int sides = 100; // Number of sides for the circle
+const float radius = 2.0f;
 
 
 // utility to create an array from 3 separate values:
@@ -332,9 +345,25 @@ main(int argc, char* argv[])
 //
 // do not call Display( ) from here -- let glutPostRedisplay( ) do it
 GLfloat horseX = 0.0f;  // Initial horse position (x-coordinate)
-GLfloat horseZ = 5.0f;  // Initial horse position (z-coordinate)
+GLfloat horseZ = radius;  // Initial horse position (z-coordinate)
 GLfloat horseY = 0.0f;  // Initial horse position (y-coordinate)
 GLfloat RockAngle = 0.0f;
+
+GLfloat horseX1 = 0.0f;  // Initial horse position (x-coordinate)
+GLfloat horseZ1 = radius;  // Initial horse position (z-coordinate)
+GLfloat horseY1 = 0.0f;  // Initial horse position (y-coordinate)
+GLfloat RockAngle1 = 0.0f;
+
+GLfloat horseX2 = 0.0f;  // Initial horse position (x-coordinate)
+GLfloat horseZ2 = radius;  // Initial horse position (z-coordinate)
+GLfloat horseY2 = 0.0f;  // Initial horse position (y-coordinate)
+GLfloat RockAngle2 = 0.0f;
+
+GLfloat horseX3 = 0.0f;  // Initial horse position (x-coordinate)
+GLfloat horseZ3 = radius;  // Initial horse position (z-coordinate)
+GLfloat horseY3 = 0.0f;  // Initial horse position (y-coordinate)
+GLfloat RockAngle3 = 0.0f;
+
 
 void
 Animate()
@@ -353,10 +382,26 @@ Animate()
 	float angle = 2.0f * M_PI * t / 30.f;
 
 	// Update the horse's position
-	horseX = 5.0f * cos(angle);
-	horseZ = -5.0f * sin(angle);
+	horseX = radius * cos(angle);
+	horseZ = -radius * sin(angle);
 	horseY = sin(2.0f * M_PI * t / 3.f);
-	RockAngle = 10.0f * sin(2.0f * M_PI * t / 2.5f);
+	RockAngle = 20.0f * sin(2.0f * M_PI * t / 2.9f);
+
+	horseX1 = radius * cos(M_PI / 2 + angle);
+	horseZ1 = -radius * sin(M_PI / 2 + angle);
+	horseY1 = sin(M_PI / 2 + 2.0f * M_PI * t / 3.f);
+	RockAngle1 = 20.0f * sin(M_PI / 2 + 2.0f * M_PI * t / 2.9f);
+
+	horseX2 = radius * cos(M_PI + angle);
+	horseZ2 = -radius * sin(M_PI + angle);
+	horseY2 = sin(M_PI + 2.0f * M_PI * t / 3.f);
+	RockAngle2 = 20.0f * sin(M_PI + 2.0f * M_PI * t / 2.9f);
+
+	horseX3 = radius * cos(1.5 * M_PI + angle);
+	horseZ3 = -radius * sin(1.5 * M_PI + angle);
+	horseY3 = sin(1.5 * M_PI + 2.0f * M_PI * t / 3.f);
+	RockAngle3 = 20.0f * sin(1.5 * M_PI + 2.0f * M_PI * t / 2.9f);
+
 
 	glutSetWindow(MainWindow);
 	glutPostRedisplay();
@@ -405,10 +450,7 @@ Display()
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	if (NowProjection == ORTHO)
-		glOrtho(-2.f, 2.f, -2.f, 2.f, 0.1f, 1000.f);
-	else
-		gluPerspective(70.f, 1.f, 0.1f, 1000.f);
+
 
 	// place the objects into the scene:
 
@@ -418,21 +460,35 @@ Display()
 
 
 
-	gluLookAt(10.f, 10.f, 10.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
-
-
-
+	// set the eye position, look-at position, and up-vector:
+	if (viewtype == 0)
+	{
+		if (NowProjection == ORTHO)
+			glOrtho(-2.f, 2.f, -2.f, 2.f, 0.1f, 1000.f);
+		else
+			gluPerspective(70.f, 1.f, 0.1f, 1000.f);
+		gluLookAt(4.f, 4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
+		// rotate the scene:
 	// rotate the scene:
-	// rotate the scene:
 
-	glRotatef((GLfloat)Yrot, 0.f, 1.f, 0.f);
-	glRotatef((GLfloat)Xrot, 1.f, 0.f, 0.f);
+		glRotatef((GLfloat)Yrot, 0.f, 1.f, 0.f);
+		glRotatef((GLfloat)Xrot, 1.f, 0.f, 0.f);
 
-	// uniformly scale the scene:
+		// uniformly scale the scene:
 
-	if (Scale < MINSCALE)
-		Scale = MINSCALE;
-	glScalef((GLfloat)Scale, (GLfloat)Scale, (GLfloat)Scale);
+		if (Scale < MINSCALE)
+			Scale = MINSCALE;
+		glScalef((GLfloat)Scale, (GLfloat)Scale, (GLfloat)Scale);
+	}
+
+	else
+	{
+		gluPerspective(70.f, 1.f, 0.1f, 1000.f);
+		gluLookAt(0.f, 0.f, 0.0f, 0.f, 0.f, 3.f, 0.f, 1.f, 0.f);
+	}
+
+
+
 
 	// set the fog parameters:
 
@@ -467,8 +523,29 @@ Display()
 	glPushMatrix();
 	glTranslatef(horseX, horseY, horseZ);
 	glRotatef(atan2(horseX, horseZ) * 180.0 / M_PI, 0.0, 1.0, 0.0);
-	glRotatef(RockAngle, 1.f, 1.f, 1.f);
+	glRotatef(RockAngle, 0.f, 0.f, 1.f);
 	glCallList(HorseList);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(horseX1, horseY1, horseZ1);
+	glRotatef(atan2(horseX1, horseZ1) * 180.0 / M_PI, 0.0, 1.0, 0.0);
+	glRotatef(RockAngle1, 0.f, 0.f, 1.f);
+	glCallList(HorseList1);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(horseX2, horseY2, horseZ2);
+	glRotatef(atan2(horseX2, horseZ2) * 180.0 / M_PI, 0.0, 1.0, 0.0);
+	glRotatef(RockAngle2, 0.f, 0.f, 1.f);
+	glCallList(HorseList2);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(horseX3, horseY3, horseZ3);
+	glRotatef(atan2(horseX3, horseZ3) * 180.0 / M_PI, 0.0, 1.0, 0.0);
+	glRotatef(RockAngle3, 0.f, 0.f, 1.f);
+	glCallList(HorseList3);
 	glPopMatrix();
 
 
@@ -574,6 +651,14 @@ DoDepthFightingMenu(int id)
 	glutPostRedisplay();
 }
 
+void
+DoViewMenu(int id)
+{
+	viewtype = id;
+
+	glutSetWindow(MainWindow);
+	glutPostRedisplay();
+}
 
 
 void
@@ -715,11 +800,14 @@ InitMenus()
 	glutAddMenuEntry("Orthographic", ORTHO);
 	glutAddMenuEntry("Perspective", PERSP);
 
+	int viewmenu = glutCreateMenu(DoViewMenu);
+	glutAddMenuEntry("Inside View", 1);
+	glutAddMenuEntry("Outside View", 0);
 
 	int mainmenu = glutCreateMenu(DoMainMenu);
+	glutAddSubMenu("View Type", viewmenu);
 	glutAddSubMenu("Axes", axesmenu);
 	glutAddSubMenu("Axis Colors", colormenu);
-	glutAddSubMenu("View Type", viewmenu);
 
 
 
@@ -843,8 +931,7 @@ InitGraphics()
 // (a display list is a way to store opengl commands in
 //  memory so that they can be played back efficiently at a later time
 //  with a call to glCallList( )
-const int sides = 100; // Number of sides for the circle
-const float radius = 5.0f;
+
 
 void
 InitLists()
@@ -852,9 +939,7 @@ InitLists()
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting InitLists.\n");
 
-	float dx = BOXSIZE / 2.f;
-	float dy = BOXSIZE / 2.f;
-	float dz = BOXSIZE / 2.f;
+
 	glutSetWindow(MainWindow);
 
 	// create the object:
@@ -864,6 +949,115 @@ InitLists()
 	glPushMatrix();
 	glRotatef(90.f, 0., 1., 0.);
 	glTranslatef(0., -1.1f, 0.f);
+	glScalef(0.6f,0.6f,0.6f);
+	glBegin(GL_TRIANGLES);
+	for (int i = 0; i < HORSEntris; i++)
+	{
+		struct point p0 = HORSEpoints[HORSEtris[i].p0];
+		struct point p1 = HORSEpoints[HORSEtris[i].p1];
+		struct point p2 = HORSEpoints[HORSEtris[i].p2];
+
+		// fake "lighting" from above:
+
+		float p01[3], p02[3], n[3];
+		p01[0] = p1.x - p0.x;
+		p01[1] = p1.y - p0.y;
+		p01[2] = p1.z - p0.z;
+		p02[0] = p2.x - p0.x;
+		p02[1] = p2.y - p0.y;
+		p02[2] = p2.z - p0.z;
+		Cross(p01, p02, n);
+		Unit(n, n);
+		n[1] = (float)fabs(n[1]);
+		// simulating a glColor3f( 1., 1., 0. ) = yellow:
+		glColor3f(1.f * n[1], 1.f * n[1], 0.f * n[1]);
+
+		glVertex3f(p0.x, p0.y, p0.z);
+		glVertex3f(p1.x, p1.y, p1.z);
+		glVertex3f(p2.x, p2.y, p2.z);
+	}
+	glEnd();
+	glPopMatrix();
+	glEndList();
+
+	HorseList1 = glGenLists(1);
+	glNewList(HorseList1, GL_COMPILE);
+	glPushMatrix();
+	glRotatef(90.f, 0., 1., 0.);
+	glTranslatef(0., -1.1f, 0.f);
+	glScalef(0.6f, 0.6f, 0.6f);
+	glBegin(GL_TRIANGLES);
+	for (int i = 0; i < HORSEntris; i++)
+	{
+		struct point p0 = HORSEpoints[HORSEtris[i].p0];
+		struct point p1 = HORSEpoints[HORSEtris[i].p1];
+		struct point p2 = HORSEpoints[HORSEtris[i].p2];
+
+		// fake "lighting" from above:
+
+		float p01[3], p02[3], n[3];
+		p01[0] = p1.x - p0.x;
+		p01[1] = p1.y - p0.y;
+		p01[2] = p1.z - p0.z;
+		p02[0] = p2.x - p0.x;
+		p02[1] = p2.y - p0.y;
+		p02[2] = p2.z - p0.z;
+		Cross(p01, p02, n);
+		Unit(n, n);
+		n[1] = (float)fabs(n[1]);
+		// simulating a glColor3f( 1., 1., 0. ) = yellow:
+		glColor3f(1.f * n[1], 1.f * n[1], 0.f * n[1]);
+
+		glVertex3f(p0.x, p0.y, p0.z);
+		glVertex3f(p1.x, p1.y, p1.z);
+		glVertex3f(p2.x, p2.y, p2.z);
+	}
+	glEnd();
+	glPopMatrix();
+	glEndList();
+
+	HorseList2 = glGenLists(1);
+	glNewList(HorseList2, GL_COMPILE);
+	glPushMatrix();
+	glRotatef(90.f, 0., 1., 0.);
+	glTranslatef(0., -1.1f, 0.f);
+	glScalef(0.6f, 0.6f, 0.6f);
+	glBegin(GL_TRIANGLES);
+	for (int i = 0; i < HORSEntris; i++)
+	{
+		struct point p0 = HORSEpoints[HORSEtris[i].p0];
+		struct point p1 = HORSEpoints[HORSEtris[i].p1];
+		struct point p2 = HORSEpoints[HORSEtris[i].p2];
+
+		// fake "lighting" from above:
+
+		float p01[3], p02[3], n[3];
+		p01[0] = p1.x - p0.x;
+		p01[1] = p1.y - p0.y;
+		p01[2] = p1.z - p0.z;
+		p02[0] = p2.x - p0.x;
+		p02[1] = p2.y - p0.y;
+		p02[2] = p2.z - p0.z;
+		Cross(p01, p02, n);
+		Unit(n, n);
+		n[1] = (float)fabs(n[1]);
+		// simulating a glColor3f( 1., 1., 0. ) = yellow:
+		glColor3f(1.f * n[1], 1.f * n[1], 0.f * n[1]);
+
+		glVertex3f(p0.x, p0.y, p0.z);
+		glVertex3f(p1.x, p1.y, p1.z);
+		glVertex3f(p2.x, p2.y, p2.z);
+	}
+	glEnd();
+	glPopMatrix();
+	glEndList();
+
+	HorseList3 = glGenLists(1);
+	glNewList(HorseList3, GL_COMPILE);
+	glPushMatrix();
+	glRotatef(90.f, 0., 1., 0.);
+	glTranslatef(0., -1.1f, 0.f);
+	glScalef(0.6f, 0.6f, 0.6f);
 	glBegin(GL_TRIANGLES);
 	for (int i = 0; i < HORSEntris; i++)
 	{
@@ -896,7 +1090,7 @@ InitLists()
 
 	CircleList = glGenLists(1);
 	glNewList(CircleList, GL_COMPILE);
-
+	glColor3f(1.f, 0.f, 0.f);
 	glBegin(GL_LINE_STRIP);
 
 	for (int i = 0; i <= sides; ++i) {
@@ -915,7 +1109,7 @@ InitLists()
 	AxesList = glGenLists(1);
 	glNewList(AxesList, GL_COMPILE);
 	glLineWidth(AXES_WIDTH);
-	Axes(2.5);
+	Axes(1.0);
 	glLineWidth(1.);
 	glEndList();
 }

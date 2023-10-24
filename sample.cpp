@@ -22,6 +22,18 @@
 #include <GL/glu.h>
 #include "glut.h"
 
+#define XSIDE	100.0f		// length of the x side of the grid
+#define X0      (-XSIDE/2.)		// where one side starts
+#define NX	100			// how many points in x
+#define DX	( XSIDE/(float)NX )	// change in x between the points
+
+#define YGRID	0.f
+
+#define ZSIDE	100.0f				// length of the z side of the grid
+#define Z0      (-ZSIDE/2.)		// where one side starts
+#define NZ	100			// how many points in z
+#define DZ	( ZSIDE/(float)NZ )	// change in z between the points
+
 
 //	This is a sample OpenGL / GLUT program
 //
@@ -88,8 +100,6 @@ const int LEFT = 4;
 const int MIDDLE = 2;
 const int RIGHT = 1;
 bool Frozen;
-int viewtype = 0;
-int WhichPerspective;
 
 // which projection:
 
@@ -97,12 +107,6 @@ enum Projections
 {
 	ORTHO,
 	PERSP
-};
-
-enum Views
-{
-	INSIDE,
-	OUTSIDE
 };
 
 // which button:
@@ -191,11 +195,17 @@ int		DebugOn;				// != 0 means to print debugging info
 int		DepthCueOn;				// != 0 means to use intensity depth cueing
 int		DepthBufferOn;			// != 0 means to use the z-buffer
 int		DepthFightingOn;		// != 0 means to force the creation of z-fighting
-GLuint	HorseList;				// object display list
-GLuint	HorseList1;
-GLuint	HorseList2;
-GLuint	HorseList3;
-GLuint	CircleList;
+GLuint	GridDL;				// object display list
+GLuint	Dog;				// object display list
+GLuint	Cow;
+GLuint	Dino;
+GLuint	Spaceship;				// object display list
+GLuint	Vase;				// object display list
+GLuint	Sphere1;
+GLuint	Sphere2;
+GLuint	Sphere3;
+GLuint	Sphere4;
+GLuint	LightSource;
 int		MainWindow;				// window id for main graphics window
 float	Scale;					// scaling factor
 int		ShadowsOn;				// != 0 means to turn shadows on
@@ -204,6 +214,14 @@ int		NowColor;				// index into Colors[ ]
 int		NowProjection;		// ORTHO or PERSP
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
+GLfloat lightPosX = 0.0f; // Initial X position of the light
+GLfloat lightPosZ = 0.0f; // Initial Z position of the light
+GLfloat lightPosY = 8.0f;
+GLfloat lightType = GL_LIGHT0; // Initialize as point light
+GLfloat lightColor[] = { 1.0f, 1.0f, 1.0f, 1.0f }; // White color
+GLfloat lightAngle = 0.0f; // Angle for circular motion
+bool lightstate = 1;
+
 
 
 // function prototypes:
@@ -216,7 +234,6 @@ void	DoDepthBufferMenu(int);
 void	DoDepthFightingMenu(int);
 void	DoDepthMenu(int);
 void	DoDebugMenu(int);
-void	DoViewMenu(int);
 void	DoMainMenu(int);
 void	DoProjectMenu(int);
 void	DoRasterString(float, float, float, char*);
@@ -238,7 +255,6 @@ void			Cross(float[3], float[3], float[3]);
 float			Dot(float[3], float[3]);
 float			Unit(float[3], float[3]);
 float			Unit(float[3]);
-
 
 // utility to create an array from 3 separate values:
 
@@ -284,16 +300,16 @@ MulArray3(float factor, float a, float b, float c)
 
 // these are here for when you need them -- just uncomment the ones you need:
 
-//#include "setmaterial.cpp"
-//#include "setlight.cpp"
-//#include "osusphere.cpp"
+#include "setmaterial.cpp"
+#include "setlight.cpp"
+#include "osusphere.cpp"
 //#include "osucone.cpp"
 //#include "osutorus.cpp"
 //#include "bmptotexture.cpp"
-//#include "loadobjfile.cpp"
+#include "loadobjfile.cpp"
 //#include "keytime.cpp"
 //#include "glslprogram.cpp"
-#include "CarouselHorse0.10.cpp"
+
 
 // main program:
 
@@ -342,26 +358,6 @@ main(int argc, char* argv[])
 // this is typically where animation parameters are set
 //
 // do not call Display( ) from here -- let glutPostRedisplay( ) do it
-GLfloat horseX = 0.0f;  // Initial horse position (x-coordinate)
-GLfloat horseZ = 5.0f;  // Initial horse position (z-coordinate)
-GLfloat horseY = 0.0f;  // Initial horse position (y-coordinate)
-GLfloat RockAngle = 0.0f;
-
-GLfloat horseX1 = 0.0f;  // Initial horse position (x-coordinate)
-GLfloat horseZ1 = 5.0f;  // Initial horse position (z-coordinate)
-GLfloat horseY1 = 0.0f;  // Initial horse position (y-coordinate)
-GLfloat RockAngle1 = 0.0f;
-
-GLfloat horseX2 = 0.0f;  // Initial horse position (x-coordinate)
-GLfloat horseZ2 = 5.0f;  // Initial horse position (z-coordinate)
-GLfloat horseY2 = 0.0f;  // Initial horse position (y-coordinate)
-GLfloat RockAngle2 = 0.0f;
-
-GLfloat horseX3 = 0.0f;  // Initial horse position (x-coordinate)
-GLfloat horseZ3 = 5.0f;  // Initial horse position (z-coordinate)
-GLfloat horseY3 = 0.0f;  // Initial horse position (y-coordinate)
-GLfloat RockAngle3 = 0.0f;
-
 
 void
 Animate()
@@ -371,39 +367,24 @@ Animate()
 	int ms = glutGet(GLUT_ELAPSED_TIME);
 	ms %= MS_PER_CYCLE;							// makes the value of ms between 0 and MS_PER_CYCLE-1
 	Time = (float)ms / (float)MS_PER_CYCLE;		// makes the value of Time between 0. and slightly less than 1.
-	float t = ElapsedSeconds();
-
 
 	// for example, if you wanted to spin an object in Display( ), you might call: glRotatef( 360.f*Time,   0., 1., 0. );
 
 	// force a call to Display( ) next time it is convenient:
-	float angle = 2.0f * M_PI * t / 30.f;
-
-	// Update the horse's position
-	horseX = 5.0f * cos(angle);
-	horseZ = -5.0f * sin(angle);
-	horseY = sin(2.0f * M_PI * t / 3.f);
-	RockAngle = 25.0f * sin(2.0f * M_PI * t / 2.9f);
-
-	horseX1 = 5.0f * cos(M_PI / 2 + angle);
-	horseZ1 = -5.0f * sin(M_PI / 2 + angle);
-	horseY1 = sin(M_PI / 2 + 2.0f * M_PI * t / 3.f);
-	RockAngle1 = 25.0f * sin(M_PI / 2 + 2.0f * M_PI * t / 2.9f);
-
-	horseX2 = 5.0f * cos(M_PI + angle);
-	horseZ2 = -5.0f * sin(M_PI + angle);
-	horseY2 = sin(M_PI + 2.0f * M_PI * t / 3.f);
-	RockAngle2 = 25.0f * sin(M_PI + 2.0f * M_PI * t / 2.9f);
-
-	horseX3 = 5.0f * cos(1.5 * M_PI + angle);
-	horseZ3 = -5.0f * sin(1.5 * M_PI + angle);
-	horseY3 = sin(1.5 * M_PI + 2.0f * M_PI * t / 3.f);
-	RockAngle3 = 25.0f * sin(1.5 * M_PI + 2.0f * M_PI * t / 2.9f);
+	lightAngle = 2.0f * M_PI * Time; // Update the light's position for circular motion
+	lightPosX = 6.0 * cos(lightAngle);
+	lightPosZ = 6.0 * sin(lightAngle);
+	if (lightstate != 0)
+		SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
+	else
+		SetSpotLight(GL_LIGHT1, lightPosX, lightPosY, lightPosZ,  0.f, -1.f, 0.f, lightColor[0], lightColor[1], lightColor[2]);
 
 
 	glutSetWindow(MainWindow);
 	glutPostRedisplay();
 }
+
+
 
 
 // draw the complete scene:
@@ -448,45 +429,30 @@ Display()
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-
+	if (NowProjection == ORTHO)
+		glOrtho(-2.f, 2.f, -2.f, 2.f, 0.1f, 1000.f);
+	else
+		gluPerspective(70.f, 1.f, 0.1f, 1000.f);
 
 	// place the objects into the scene:
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	// set the eye position, look-at position, and up-vector:
-
-
 
 	// set the eye position, look-at position, and up-vector:
-	if (viewtype == 0)
-	{
-		if (NowProjection == ORTHO)
-			glOrtho(-2.f, 2.f, -2.f, 2.f, 0.1f, 1000.f);
-		else
-			gluPerspective(70.f, 1.f, 0.1f, 1000.f);
-		gluLookAt(8.f, 8.f, 8.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
-		// rotate the scene:
+
+	gluLookAt(0, 12, 10, 0, 0, 0, 0, 1, 0);
+
 	// rotate the scene:
 
-		glRotatef((GLfloat)Yrot, 0.f, 1.f, 0.f);
-		glRotatef((GLfloat)Xrot, 1.f, 0.f, 0.f);
+	glRotatef((GLfloat)Yrot, 0.f, 1.f, 0.f);
+	glRotatef((GLfloat)Xrot, 1.f, 0.f, 0.f);
 
-		// uniformly scale the scene:
+	// uniformly scale the scene:
 
-		if (Scale < MINSCALE)
-			Scale = MINSCALE;
-		glScalef((GLfloat)Scale, (GLfloat)Scale, (GLfloat)Scale);
-	}
-
-	else
-	{
-		gluPerspective(70.f, 1.f, 0.1f, 1000.f);
-		gluLookAt(0.f, 0.f, 1.0f, 0.f, 0.f, 3.f, 0.f, 1.f, 0.f);
-	}
-
-
-
+	if (Scale < MINSCALE)
+		Scale = MINSCALE;
+	glScalef((GLfloat)Scale, (GLfloat)Scale, (GLfloat)Scale);
 
 	// set the fog parameters:
 
@@ -513,48 +479,40 @@ Display()
 	}
 
 	// since we are using glScalef( ), be sure the normals get unitized:
-
+	
 	glEnable(GL_NORMALIZE);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+
+	 // Set light source properties
 
 
-	// draw the box object by calling up its display list:
-	glPushMatrix();
-	glTranslatef(horseX, horseY, horseZ);
-	glRotatef(atan2(horseX, horseZ) * 180.0 / M_PI, 0.0, 1.0, 0.0);
-	glRotatef(RockAngle, 1.f, 1.f, 1.f);
-	glCallList(HorseList);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(horseX1, horseY1, horseZ1);
-	glRotatef(atan2(horseX1, horseZ1) * 180.0 / M_PI, 0.0, 1.0, 0.0);
-	glRotatef(RockAngle1, 1.f, 1.f, 1.f);
-	glCallList(HorseList1);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(horseX2, horseY2, horseZ2);
-	glRotatef(atan2(horseX2, horseZ2) * 180.0 / M_PI, 0.0, 1.0, 0.0);
-	glRotatef(RockAngle2, 1.f, 1.f, 1.f);
-	glCallList(HorseList2);
-	glPopMatrix();
+	glCallList(GridDL);
+	//glCallList(Spaceship);
+	glCallList(Dog);
+	glCallList(Cow);
+	glCallList(Dino);
+	glCallList(Sphere1);
+	glCallList(Sphere2);
+	glCallList(Sphere3);
+	glCallList(Sphere4);
 
 	glPushMatrix();
-	glTranslatef(horseX3, horseY3, horseZ3);
-	glRotatef(atan2(horseX3, horseZ3) * 180.0 / M_PI, 0.0, 1.0, 0.0);
-	glRotatef(RockAngle3, 1.f, 1.f, 1.f);
-	glCallList(HorseList3);
+	glShadeModel(GL_SMOOTH);
+	glColor3fv(lightColor);
+	glTranslatef(lightPosX, lightPosY, lightPosZ);
+	glCallList(LightSource);
 	glPopMatrix();
+	
 
 
-	glCallList(CircleList);
 
 #ifdef DEMO_Z_FIGHTING
 	if (DepthFightingOn != 0)
 	{
 		glPushMatrix();
 		glRotatef(90.f, 0.f, 1.f, 0.f);
-		glCallList(BoxList);
+		glCallList(GridDL);
 		glPopMatrix();
 	}
 #endif
@@ -644,15 +602,6 @@ void
 DoDepthFightingMenu(int id)
 {
 	DepthFightingOn = id;
-
-	glutSetWindow(MainWindow);
-	glutPostRedisplay();
-}
-
-void
-DoViewMenu(int id)
-{
-	viewtype = id;
 
 	glutSetWindow(MainWindow);
 	glutPostRedisplay();
@@ -798,16 +747,9 @@ InitMenus()
 	glutAddMenuEntry("Orthographic", ORTHO);
 	glutAddMenuEntry("Perspective", PERSP);
 
-	int viewmenu = glutCreateMenu(DoViewMenu);
-	glutAddMenuEntry("Inside View", 1);
-	glutAddMenuEntry("Outside View", 0);
-
 	int mainmenu = glutCreateMenu(DoMainMenu);
-	glutAddSubMenu("View Type", viewmenu);
 	glutAddSubMenu("Axes", axesmenu);
 	glutAddSubMenu("Axis Colors", colormenu);
-
-
 
 #ifdef DEMO_DEPTH_BUFFER
 	glutAddSubMenu("Depth Buffer", depthbuffermenu);
@@ -929,8 +871,6 @@ InitGraphics()
 // (a display list is a way to store opengl commands in
 //  memory so that they can be played back efficiently at a later time
 //  with a call to glCallList( )
-const int sides = 100; // Number of sides for the circle
-const float radius = 5.0f;
 
 void
 InitLists()
@@ -938,181 +878,92 @@ InitLists()
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting InitLists.\n");
 
-	float dx = BOXSIZE / 2.f;
-	float dy = BOXSIZE / 2.f;
-	float dz = BOXSIZE / 2.f;
+
 	glutSetWindow(MainWindow);
 
-	// create the object:
-
-	HorseList = glGenLists(1);
-	glNewList(HorseList, GL_COMPILE);
+	GridDL = glGenLists(1);
+	glNewList(GridDL, GL_COMPILE);
 	glPushMatrix();
-	glRotatef(90.f, 0., 1., 0.);
-	glTranslatef(0., -1.1f, 0.f);
-	glBegin(GL_TRIANGLES);
-	for (int i = 0; i < HORSEntris; i++)
+	SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
+	glNormal3f(0., 1., 0.);
+	for (int i = 0; i < NZ; i++)
 	{
-		struct point p0 = HORSEpoints[HORSEtris[i].p0];
-		struct point p1 = HORSEpoints[HORSEtris[i].p1];
-		struct point p2 = HORSEpoints[HORSEtris[i].p2];
-
-		// fake "lighting" from above:
-
-		float p01[3], p02[3], n[3];
-		p01[0] = p1.x - p0.x;
-		p01[1] = p1.y - p0.y;
-		p01[2] = p1.z - p0.z;
-		p02[0] = p2.x - p0.x;
-		p02[1] = p2.y - p0.y;
-		p02[2] = p2.z - p0.z;
-		Cross(p01, p02, n);
-		Unit(n, n);
-		n[1] = (float)fabs(n[1]);
-		// simulating a glColor3f( 1., 1., 0. ) = yellow:
-		glColor3f(1.f * n[1], 1.f * n[1], 0.f * n[1]);
-
-		glVertex3f(p0.x, p0.y, p0.z);
-		glVertex3f(p1.x, p1.y, p1.z);
-		glVertex3f(p2.x, p2.y, p2.z);
+		glBegin(GL_QUAD_STRIP);
+		for (int j = 0; j < NX; j++)
+		{
+			glVertex3f(X0 + DX * (float)j, YGRID, Z0 + DZ * (float)(i + 0));
+			glVertex3f(X0 + DX * (float)j, YGRID, Z0 + DZ * (float)(i + 1));
+		}
+		glEnd();
 	}
-	glEnd();
 	glPopMatrix();
 	glEndList();
 
-	HorseList1 = glGenLists(1);
-	glNewList(HorseList1, GL_COMPILE);
+	Dog = glGenLists(1);
+	glNewList(Dog, GL_COMPILE);
 	glPushMatrix();
-	glRotatef(90.f, 0., 1., 0.);
-	glTranslatef(0., -1.1f, 0.f);
-	glBegin(GL_TRIANGLES);
-	for (int i = 0; i < HORSEntris; i++)
-	{
-		struct point p0 = HORSEpoints[HORSEtris[i].p0];
-		struct point p1 = HORSEpoints[HORSEtris[i].p1];
-		struct point p2 = HORSEpoints[HORSEtris[i].p2];
-
-		// fake "lighting" from above:
-
-		float p01[3], p02[3], n[3];
-		p01[0] = p1.x - p0.x;
-		p01[1] = p1.y - p0.y;
-		p01[2] = p1.z - p0.z;
-		p02[0] = p2.x - p0.x;
-		p02[1] = p2.y - p0.y;
-		p02[2] = p2.z - p0.z;
-		Cross(p01, p02, n);
-		Unit(n, n);
-		n[1] = (float)fabs(n[1]);
-		// simulating a glColor3f( 1., 1., 0. ) = yellow:
-		glColor3f(1.f * n[1], 1.f * n[1], 0.f * n[1]);
-
-		glVertex3f(p0.x, p0.y, p0.z);
-		glVertex3f(p1.x, p1.y, p1.z);
-		glVertex3f(p2.x, p2.y, p2.z);
-	}
-	glEnd();
+	glTranslatef(2.f, 1.f, 2.f);
+	LoadObjFile((char*)"dog.obj");
 	glPopMatrix();
 	glEndList();
 
-	HorseList2 = glGenLists(1);
-	glNewList(HorseList2, GL_COMPILE);
+	Dino = glGenLists(1);
+	glNewList(Dino, GL_COMPILE);
 	glPushMatrix();
-	glRotatef(90.f, 0., 1., 0.);
-	glTranslatef(0., -1.1f, 0.f);
-	glBegin(GL_TRIANGLES);
-	for (int i = 0; i < HORSEntris; i++)
-	{
-		struct point p0 = HORSEpoints[HORSEtris[i].p0];
-		struct point p1 = HORSEpoints[HORSEtris[i].p1];
-		struct point p2 = HORSEpoints[HORSEtris[i].p2];
-
-		// fake "lighting" from above:
-
-		float p01[3], p02[3], n[3];
-		p01[0] = p1.x - p0.x;
-		p01[1] = p1.y - p0.y;
-		p01[2] = p1.z - p0.z;
-		p02[0] = p2.x - p0.x;
-		p02[1] = p2.y - p0.y;
-		p02[2] = p2.z - p0.z;
-		Cross(p01, p02, n);
-		Unit(n, n);
-		n[1] = (float)fabs(n[1]);
-		// simulating a glColor3f( 1., 1., 0. ) = yellow:
-		glColor3f(1.f * n[1], 1.f * n[1], 0.f * n[1]);
-
-		glVertex3f(p0.x, p0.y, p0.z);
-		glVertex3f(p1.x, p1.y, p1.z);
-		glVertex3f(p2.x, p2.y, p2.z);
-	}
-	glEnd();
+	glTranslatef(5.f, 1.f, -5.f);
+	glRotatef(45.f, 0.f, 1.f, 0.f);
+	LoadObjFile((char*)"dino.obj");
 	glPopMatrix();
 	glEndList();
 
-	HorseList3 = glGenLists(1);
-	glNewList(HorseList3, GL_COMPILE);
+	Cow = glGenLists(1);
+	glNewList(Cow, GL_COMPILE);
 	glPushMatrix();
-	glRotatef(90.f, 0., 1., 0.);
-	glTranslatef(0., -1.1f, 0.f);
-	glBegin(GL_TRIANGLES);
-	for (int i = 0; i < HORSEntris; i++)
-	{
-		struct point p0 = HORSEpoints[HORSEtris[i].p0];
-		struct point p1 = HORSEpoints[HORSEtris[i].p1];
-		struct point p2 = HORSEpoints[HORSEtris[i].p2];
-
-		// fake "lighting" from above:
-
-		float p01[3], p02[3], n[3];
-		p01[0] = p1.x - p0.x;
-		p01[1] = p1.y - p0.y;
-		p01[2] = p1.z - p0.z;
-		p02[0] = p2.x - p0.x;
-		p02[1] = p2.y - p0.y;
-		p02[2] = p2.z - p0.z;
-		Cross(p01, p02, n);
-		Unit(n, n);
-		n[1] = (float)fabs(n[1]);
-		// simulating a glColor3f( 1., 1., 0. ) = yellow:
-		glColor3f(1.f * n[1], 1.f * n[1], 0.f * n[1]);
-
-		glVertex3f(p0.x, p0.y, p0.z);
-		glVertex3f(p1.x, p1.y, p1.z);
-		glVertex3f(p2.x, p2.y, p2.z);
-	}
-	glEnd();
+	glTranslatef(-5.f, 1.f, 5.f);
+	glRotatef(225.f, 0.f, 1.f, 0.f);
+	LoadObjFile((char*)"cow.obj");
 	glPopMatrix();
 	glEndList();
 
-	CircleList = glGenLists(1);
-	glNewList(CircleList, GL_COMPILE);
-	glColor3f(1.f, 0.f, 0.f);
-	glBegin(GL_LINE_STRIP);
+	
 
-	for (int i = 0; i <= sides; ++i) {
-		float angle = 2.0f * M_PI * static_cast<float>(i) / static_cast<float>(sides);
-		float x = radius * cos(angle);
-		float z = radius * sin(angle);
-		glVertex3f(x, 0.0f, z);
-	}
-
-	glEnd();
+	Sphere3 = glGenLists(1);
+	glNewList(Sphere3, GL_COMPILE);
+	glPushMatrix();
+	glTranslatef(-2.f, 1.f, -2.f);
+	glShadeModel(GL_FLAT);
+	glNormal3f(0.f, 1.f, 0.f);
+	glColor3f(0.f, 0.f, 1.f);
+	OsuSphere(1.f, 20, 20);
+	glPopMatrix();
 	glEndList();
 
+	
+
+	LightSource = glGenLists(1);
+	glNewList(LightSource, GL_COMPILE);
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+	OsuSphere(0.2, 10, 10); // Draw a small sphere
+	glPopMatrix();
+	glEnable(GL_LIGHTING);
+	glEndList();
+	
 
 	// create the axes:
 
 	AxesList = glGenLists(1);
 	glNewList(AxesList, GL_COMPILE);
 	glLineWidth(AXES_WIDTH);
-	Axes(2.5);
+	Axes(1.5);
 	glLineWidth(1.);
 	glEndList();
 }
 
 
 // the keyboard callback:
+
+
 
 void
 Keyboard(unsigned char c, int x, int y)
@@ -1122,6 +973,44 @@ Keyboard(unsigned char c, int x, int y)
 
 	switch (c)
 	{
+	case 'P':
+	case 'p':
+		lightstate = 1;
+		break;
+	case 'S':
+	case 's':
+		lightstate = 0;
+		break;
+	case 'W':
+	case 'w':
+		lightColor[0] = 1.0f; // Red
+		lightColor[1] = 1.0f; // Green
+		lightColor[2] = 1.0f; // Blue
+		break;
+	case 'R':
+	case 'r':
+		lightColor[0] = 1.0f; // Red
+		lightColor[1] = 0.0f; // Green
+		lightColor[2] = 0.0f; // Blue
+		break;
+	case 'G':
+	case 'g':
+		lightColor[0] = 0.0f; // Red
+		lightColor[1] = 1.0f; // Green
+		lightColor[2] = 0.0f; // Blue
+		break;
+	case 'B':
+	case 'b':
+		lightColor[0] = 0.0f; // Red
+		lightColor[1] = 0.0f; // Green
+		lightColor[2] = 1.0f; // Blue
+		break;
+	case 'Y':
+	case 'y':
+		lightColor[0] = 1.0f; // Red
+		lightColor[1] = 1.0f; // Green
+		lightColor[2] = 0.0f; // Blue
+		break;
 	case 'f':
 	case 'F':
 		Frozen = !Frozen;
@@ -1129,15 +1018,6 @@ Keyboard(unsigned char c, int x, int y)
 			glutIdleFunc(NULL);
 		else
 			glutIdleFunc(Animate);
-		break;
-	case 'o':
-	case 'O':
-		NowProjection = ORTHO;
-		break;
-
-	case 'p':
-	case 'P':
-		NowProjection = PERSP;
 		break;
 
 	case 'q':
