@@ -24,14 +24,14 @@
 
 #define XSIDE	100.0f		// length of the x side of the grid
 #define X0      (-XSIDE/2.)		// where one side starts
-#define NX	100			// how many points in x
+#define NX	1000			// how many points in x
 #define DX	( XSIDE/(float)NX )	// change in x between the points
 
-#define YGRID	0.f
+#define YGRID	-2.6f
 
 #define ZSIDE	100.0f				// length of the z side of the grid
 #define Z0      (-ZSIDE/2.)		// where one side starts
-#define NZ	100			// how many points in z
+#define NZ	1000			// how many points in z
 #define DZ	( ZSIDE/(float)NZ )	// change in z between the points
 
 
@@ -51,7 +51,7 @@
 //		6. The transformations to be reset
 //		7. The program to quit
 //
-//	Author:			Joe Graphics
+
 
 // title of these windows:
 
@@ -216,11 +216,12 @@ int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 GLfloat lightPosX = 0.0f; // Initial X position of the light
 GLfloat lightPosZ = 0.0f; // Initial Z position of the light
-GLfloat lightPosY = 8.0f;
+GLfloat lightPosY = 15.0f;
 GLfloat lightType = GL_LIGHT0; // Initialize as point light
 GLfloat lightColor[] = { 1.0f, 1.0f, 1.0f, 1.0f }; // White color
 GLfloat lightAngle = 0.0f; // Angle for circular motion
 bool lightstate = 1;
+int shadetype = 0;
 
 
 
@@ -248,6 +249,7 @@ void	MouseMotion(int, int);
 void	Reset();
 void	Resize(int, int);
 void	Visibility(int);
+void	DoViewMenu(int);
 
 void			Axes(float);
 void			HsvRgb(float[3], float[3]);
@@ -372,12 +374,8 @@ Animate()
 
 	// force a call to Display( ) next time it is convenient:
 	lightAngle = 2.0f * M_PI * Time; // Update the light's position for circular motion
-	lightPosX = 6.0 * cos(lightAngle);
-	lightPosZ = 6.0 * sin(lightAngle);
-	if (lightstate != 0)
-		SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
-	else
-		SetSpotLight(GL_LIGHT1, lightPosX, lightPosY, lightPosZ,  0.f, -1.f, 0.f, lightColor[0], lightColor[1], lightColor[2]);
+	lightPosX = 18.0 * cos(lightAngle);
+	lightPosZ = 18.0 * sin(lightAngle);
 
 
 	glutSetWindow(MainWindow);
@@ -411,7 +409,12 @@ Display()
 
 	// specify shading to be flat:
 
-	glShadeModel(GL_FLAT);
+	if (shadetype == 0)
+		glShadeModel(GL_FLAT);
+	else
+		glShadeModel(GL_SMOOTH);
+
+
 
 	// set the viewport to be a square centered in the window:
 
@@ -441,7 +444,7 @@ Display()
 
 	// set the eye position, look-at position, and up-vector:
 
-	gluLookAt(0, 12, 10, 0, 0, 0, 0, 1, 0);
+	gluLookAt(6, 20, 30, 0, 0, 0, 0, 1, 0);
 
 	// rotate the scene:
 
@@ -478,6 +481,10 @@ Display()
 		glCallList(AxesList);
 	}
 
+	if (lightstate != 0)
+		SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
+	else
+		SetSpotLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, 0.f, -3.f, 0.f, lightColor[0], lightColor[1], lightColor[2]);
 	// since we are using glScalef( ), be sure the normals get unitized:
 	
 	glEnable(GL_NORMALIZE);
@@ -488,7 +495,7 @@ Display()
 
 
 	glCallList(GridDL);
-	//glCallList(Spaceship);
+	glCallList(Spaceship);
 	glCallList(Dog);
 	glCallList(Cow);
 	glCallList(Dino);
@@ -602,6 +609,15 @@ void
 DoDepthFightingMenu(int id)
 {
 	DepthFightingOn = id;
+
+	glutSetWindow(MainWindow);
+	glutPostRedisplay();
+}
+
+void
+DoShadeMenu(int id)
+{
+	shadetype = id;
 
 	glutSetWindow(MainWindow);
 	glutPostRedisplay();
@@ -747,7 +763,12 @@ InitMenus()
 	glutAddMenuEntry("Orthographic", ORTHO);
 	glutAddMenuEntry("Perspective", PERSP);
 
+	int shademenu = glutCreateMenu(DoShadeMenu);
+	glutAddMenuEntry("Smooth", 1);
+	glutAddMenuEntry("Flat", 0);
+
 	int mainmenu = glutCreateMenu(DoMainMenu);
+	glutAddSubMenu("Shading", shademenu);
 	glutAddSubMenu("Axes", axesmenu);
 	glutAddSubMenu("Axis Colors", colormenu);
 
@@ -902,7 +923,10 @@ InitLists()
 	Dog = glGenLists(1);
 	glNewList(Dog, GL_COMPILE);
 	glPushMatrix();
-	glTranslatef(2.f, 1.f, 2.f);
+	SetMaterial(0.f, 1.f, 0.2f, 20.f);
+	glTranslatef(6.f, -2.6f, 6.f);
+	glRotatef(45.f, 0.f, 1.f, 0.f);
+	glScalef(2.0, 2.0, 2.0);
 	LoadObjFile((char*)"dog.obj");
 	glPopMatrix();
 	glEndList();
@@ -910,7 +934,8 @@ InitLists()
 	Dino = glGenLists(1);
 	glNewList(Dino, GL_COMPILE);
 	glPushMatrix();
-	glTranslatef(5.f, 1.f, -5.f);
+	SetMaterial(0.2f, 0.f, 1.f, 0.f);
+	glTranslatef(6.f, 1.f, -6.f);
 	glRotatef(45.f, 0.f, 1.f, 0.f);
 	LoadObjFile((char*)"dino.obj");
 	glPopMatrix();
@@ -919,27 +944,24 @@ InitLists()
 	Cow = glGenLists(1);
 	glNewList(Cow, GL_COMPILE);
 	glPushMatrix();
-	glTranslatef(-5.f, 1.f, 5.f);
+	SetMaterial(0.8f, 0.2f, 0.1f, 30.f);
+	glTranslatef(-6.f, 1.f, 6.f);
 	glRotatef(225.f, 0.f, 1.f, 0.f);
 	LoadObjFile((char*)"cow.obj");
 	glPopMatrix();
 	glEndList();
 
-	
-
-	Sphere3 = glGenLists(1);
-	glNewList(Sphere3, GL_COMPILE);
+	Spaceship = glGenLists(1);
+	glNewList(Spaceship, GL_COMPILE);
 	glPushMatrix();
-	glTranslatef(-2.f, 1.f, -2.f);
-	glShadeModel(GL_FLAT);
-	glNormal3f(0.f, 1.f, 0.f);
-	glColor3f(0.f, 0.f, 1.f);
-	OsuSphere(1.f, 20, 20);
+	SetMaterial(0.9f, 1.f, 0.2f, 25.f);
+	glTranslatef(-6.f, 1.f, -6.f);
+	glScalef(0.05,0.05,0.05);
+	glRotatef(315.f, 0.f, 1.f, 0.f);
+	LoadObjFile((char*)"spaceship.obj");
 	glPopMatrix();
 	glEndList();
-
 	
-
 	LightSource = glGenLists(1);
 	glNewList(LightSource, GL_COMPILE);
 	glDisable(GL_LIGHTING);
@@ -951,7 +973,6 @@ InitLists()
 	
 
 	// create the axes:
-
 	AxesList = glGenLists(1);
 	glNewList(AxesList, GL_COMPILE);
 	glLineWidth(AXES_WIDTH);
