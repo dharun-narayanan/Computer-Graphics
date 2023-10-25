@@ -69,7 +69,7 @@ const int ESCAPE = 0x1b;
 
 // initial window size:
 
-const int INIT_WINDOW_SIZE = 600;
+const int INIT_WINDOW_SIZE = 800;
 
 // size of the 3d box to be drawn:
 
@@ -485,13 +485,13 @@ Display()
 		SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
 	else
 		SetSpotLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, 0.f, -3.f, 0.f, lightColor[0], lightColor[1], lightColor[2]);
-	// since we are using glScalef( ), be sure the normals get unitized:
+
 	
 	glEnable(GL_NORMALIZE);
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 
-	 // Set light source properties
+
 
 
 	glCallList(GridDL);
@@ -759,10 +759,6 @@ InitMenus()
 	glutAddMenuEntry("Off", 0);
 	glutAddMenuEntry("On", 1);
 
-	int projmenu = glutCreateMenu(DoProjectMenu);
-	glutAddMenuEntry("Orthographic", ORTHO);
-	glutAddMenuEntry("Perspective", PERSP);
-
 	int shademenu = glutCreateMenu(DoShadeMenu);
 	glutAddMenuEntry("Smooth", 1);
 	glutAddMenuEntry("Flat", 0);
@@ -781,7 +777,6 @@ InitMenus()
 #endif
 
 	glutAddSubMenu("Depth Cue", depthcuemenu);
-	glutAddSubMenu("Projection", projmenu);
 	glutAddMenuEntry("Reset", RESET);
 	glutAddSubMenu("Debug", debugmenu);
 	glutAddMenuEntry("Quit", QUIT);
@@ -968,7 +963,6 @@ InitLists()
 	glPushMatrix();
 	OsuSphere(0.2, 10, 10); // Draw a small sphere
 	glPopMatrix();
-	glEnable(GL_LIGHTING);
 	glEndList();
 	
 
