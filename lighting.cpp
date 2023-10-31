@@ -309,12 +309,9 @@ MulArray3(float factor, float a, float b, float c)
 //#include "osutorus.cpp"
 //#include "bmptotexture.cpp"
 #include "loadobjfile.cpp"
-#include "keytime.cpp"
+//#include "keytime.cpp"
 //#include "glslprogram.cpp"
 
-#define MSEC 10000
-Keytimes Xpos, Ypos, Zpos;
-Keytimes ThetaX, ThetaY, ThetaZ;
 
 // main program:
 
@@ -373,7 +370,12 @@ Animate()
 	ms %= MS_PER_CYCLE;							// makes the value of ms between 0 and MS_PER_CYCLE-1
 	Time = (float)ms / (float)MS_PER_CYCLE;		// makes the value of Time between 0. and slightly less than 1.
 
+	// for example, if you wanted to spin an object in Display( ), you might call: glRotatef( 360.f*Time,   0., 1., 0. );
 
+	// force a call to Display( ) next time it is convenient:
+	lightAngle = 2.0f * M_PI * Time; // Update the light's position for circular motion
+	lightPosX = 16.0 * cos(lightAngle);
+	lightPosZ = 16.0 * sin(lightAngle);
 
 
 	glutSetWindow(MainWindow);
@@ -388,9 +390,6 @@ Animate()
 void
 Display()
 {
-	int msec = glutGet(GLUT_ELAPSED_TIME) % MSEC;
-	float nowSecs = (float)msec / 1000.f;
-
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting Display.\n");
 
@@ -496,13 +495,21 @@ Display()
 
 
 	glCallList(GridDL);
-	glPushMatrix();
-		glTranslatef(Xpos.GetValue(nowSecs), Ypos.GetValue(nowSecs), Zpos.GetValue(nowSecs)); 
-		glRotatef(ThetaX.GetValue(nowSecs), 1., 0., 0.); glRotatef(ThetaY.GetValue(nowSecs), 0., 1., 0.); 
-		glRotatef(ThetaZ.GetValue(nowSecs), 0., 0., 1.);
-		glCallList(Spaceship);
-	glPopMatrix();
+	glCallList(Spaceship);
+	glCallList(Dog);
+	glCallList(Cow);
+	glCallList(Dino);
+	glCallList(Sphere1);
+	glCallList(Sphere2);
+	glCallList(Sphere3);
+	glCallList(Sphere4);
 
+	glPushMatrix();
+	glShadeModel(GL_SMOOTH);
+	glColor3fv(lightColor);
+	glTranslatef(lightPosX, lightPosY, lightPosZ);
+	glCallList(LightSource);
+	glPopMatrix();
 
 
 
@@ -857,11 +864,6 @@ InitGraphics()
 	// but, this sets us up nicely for doing animation
 
 	glutIdleFunc(Animate);
-	Ypos.Init(); 
-	Ypos.AddTimeValue(0.0, 0.000); 
-	Ypos.AddTimeValue(2.0, 0.333); 
-	Ypos.AddTimeValue(1.0, 3.142); 
-	Ypos.AddTimeValue(0.5, 2.718);
 
 	// init the glew package (a window must be open to do this):
 
@@ -913,17 +915,56 @@ InitLists()
 	glPopMatrix();
 	glEndList();
 
+	Dog = glGenLists(1);
+	glNewList(Dog, GL_COMPILE);
+	glPushMatrix();
+	SetMaterial(0.f, 1.f, 0.2f, 20.f);
+	glTranslatef(6.f, -2.6f, 6.f);
+	glRotatef(45.f, 0.f, 1.f, 0.f);
+	glScalef(2.0, 2.0, 2.0);
+	LoadObjFile((char*)"dog.obj");
+	glPopMatrix();
+	glEndList();
+
+	Dino = glGenLists(1);
+	glNewList(Dino, GL_COMPILE);
+	glPushMatrix();
+	SetMaterial(0.2f, 0.f, 1.f, 1.f);
+	glTranslatef(6.f, 1.f, -6.f);
+	glRotatef(45.f, 0.f, 1.f, 0.f);
+	LoadObjFile((char*)"dino.obj");
+	glPopMatrix();
+	glEndList();
+
+	Cow = glGenLists(1);
+	glNewList(Cow, GL_COMPILE);
+	glPushMatrix();
+	SetMaterial(0.8f, 0.2f, 0.1f, 30.f);
+	glTranslatef(-6.f, 1.f, 6.f);
+	glRotatef(225.f, 0.f, 1.f, 0.f);
+	LoadObjFile((char*)"cow.obj");
+	glPopMatrix();
+	glEndList();
 
 	Spaceship = glGenLists(1);
 	glNewList(Spaceship, GL_COMPILE);
 	glPushMatrix();
-	SetMaterial(0.9f, 0.f, 0.2f, 10.f);
-	glTranslatef(-4.f, 2.2f, -4.f);
-	glScalef(0.02, 0.02, 0.02);
-	glRotatef(90.f, 0.f, 0.f, 1.f);
+	SetMaterial(0.9f, 1.f, 0.2f, 25.f);
+	glTranslatef(-6.f, 1.f, -6.f);
+	glScalef(0.05, 0.05, 0.05);
+	glRotatef(315.f, 0.f, 1.f, 0.f);
 	LoadObjFile((char*)"spaceship.obj");
 	glPopMatrix();
 	glEndList();
+
+	LightSource = glGenLists(1);
+	glNewList(LightSource, GL_COMPILE);
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+	OsuSphere(0.2, 10, 10); // Draw a small sphere
+	glPopMatrix();
+	glEndList();
+
 
 	// create the axes:
 	AxesList = glGenLists(1);
