@@ -22,14 +22,14 @@
 #include <GL/glu.h>
 #include "glut.h"
 
-#define XSIDE	100.0f		// length of the x side of the grid
+#define XSIDE	80.0f		// length of the x side of the grid
 #define X0      (-XSIDE/2.)		// where one side starts
 #define NX	1000			// how many points in x
 #define DX	( XSIDE/(float)NX )	// change in x between the points
 
 #define YGRID	-2.6f
 
-#define ZSIDE	100.0f				// length of the z side of the grid
+#define ZSIDE	80.0f				// length of the z side of the grid
 #define Z0      (-ZSIDE/2.)		// where one side starts
 #define NZ	1000			// how many points in z
 #define DZ	( ZSIDE/(float)NZ )	// change in z between the points
@@ -196,15 +196,11 @@ int		DepthCueOn;				// != 0 means to use intensity depth cueing
 int		DepthBufferOn;			// != 0 means to use the z-buffer
 int		DepthFightingOn;		// != 0 means to force the creation of z-fighting
 GLuint	GridDL;				// object display list
-GLuint	Dog;				// object display list
-GLuint	Cow;
-GLuint	Dino;
-GLuint	Spaceship;				// object display list
-GLuint	Vase;				// object display list
+GLuint	Spaceship;			// object display list
+GLuint	Sphere;
 GLuint	Sphere1;
 GLuint	Sphere2;
-GLuint	Sphere3;
-GLuint	Sphere4;
+GLuint	Torus;
 GLuint	LightSource;
 int		MainWindow;				// window id for main graphics window
 float	Scale;					// scaling factor
@@ -306,15 +302,22 @@ MulArray3(float factor, float a, float b, float c)
 #include "setlight.cpp"
 #include "osusphere.cpp"
 //#include "osucone.cpp"
-//#include "osutorus.cpp"
+#include "osutorus.cpp"
 //#include "bmptotexture.cpp"
 #include "loadobjfile.cpp"
 #include "keytime.cpp"
 //#include "glslprogram.cpp"
 
-#define MSEC 10000
+#define MSEC 20000
 Keytimes Xpos, Ypos, Zpos;
 Keytimes ThetaX, ThetaY, ThetaZ;
+Keytimes SphereX, SphereY, SphereZ;
+Keytimes TorusX, TorusY, TorusZ;
+Keytimes Kred, Kgreen, Kblue;
+Keytimes lookX, lookY, lookZ;
+Keytimes eyeX, eyeY, eyeZ;
+float loopDuration = 20.0;
+float totalDuration = 2 * loopDuration;
 
 // main program:
 
@@ -376,6 +379,8 @@ Animate()
 
 
 
+
+
 	glutSetWindow(MainWindow);
 	glutPostRedisplay();
 }
@@ -390,6 +395,8 @@ Display()
 {
 	int msec = glutGet(GLUT_ELAPSED_TIME) % MSEC;
 	float nowSecs = (float)msec / 1000.f;
+
+	
 
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting Display.\n");
@@ -445,7 +452,8 @@ Display()
 
 	// set the eye position, look-at position, and up-vector:
 
-	gluLookAt(6, 20, 30, 0, 0, 0, 0, 1, 0);
+	//gluLookAt(6, 20, 30, 0, 0, 0, 0, 1, 0);
+	gluLookAt(eyeX.GetValue(nowSecs), eyeY.GetValue(nowSecs), eyeZ.GetValue(nowSecs), lookX.GetValue(nowSecs), lookY.GetValue(nowSecs), lookZ.GetValue(nowSecs), 0, 1, 0);
 
 	// rotate the scene:
 
@@ -482,29 +490,51 @@ Display()
 		glCallList(AxesList);
 	}
 
+
 	if (lightstate != 0)
 		SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
 	else
 		SetSpotLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, 0.f, -3.f, 0.f, lightColor[0], lightColor[1], lightColor[2]);
 
-
 	glEnable(GL_NORMALIZE);
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
+	glEnable(GL_LIGHT1);
 
-
-
+	/*SetSpotLight(GL_LIGHT0, lightPosX, -lightPosY, lightPosZ, 0.f, 2.2f, 0.f, 0.9, 0.3, 0);
+	SetSpotLight(GL_LIGHT1, lightPosX, lightPosY, lightPosZ, 0.f, -2.2f, 0.f, 0.4,1,0.3);*/
+	SetSpotLight(GL_LIGHT1, lightPosX, lightPosY, lightPosZ, 0.f, -2.2f, 0.f, 0.4,1,0.3);
 
 	glCallList(GridDL);
-	glPushMatrix();
-		glTranslatef(Xpos.GetValue(nowSecs), Ypos.GetValue(nowSecs), Zpos.GetValue(nowSecs)); 
-		glRotatef(ThetaX.GetValue(nowSecs), 1., 0., 0.); glRotatef(ThetaY.GetValue(nowSecs), 0., 1., 0.); 
+
+	glPushMatrix(); 
+		SetMaterial(Kred.GetValue(nowSecs), Kgreen.GetValue(nowSecs), 0.f, 10.f);
+		glTranslatef(Xpos.GetValue(nowSecs), Ypos.GetValue(nowSecs), Zpos.GetValue(nowSecs));
 		glRotatef(ThetaZ.GetValue(nowSecs), 0., 0., 1.);
+		glRotatef(ThetaY.GetValue(nowSecs), 0., 1., 0.);
 		glCallList(Spaceship);
 	glPopMatrix();
 
+	glPushMatrix();
+		SetMaterial(Kred.GetValue(nowSecs), Kgreen.GetValue(nowSecs), Kblue.GetValue(nowSecs), 10.f);
+		glRotatef(atan2(SphereX.GetValue(nowSecs), SphereZ.GetValue(nowSecs)), 0., 1., 0.);
+		glTranslatef(SphereX.GetValue(nowSecs), 0, SphereZ.GetValue(nowSecs));
+		glTranslatef(Xpos.GetValue(nowSecs), Ypos.GetValue(nowSecs), Zpos.GetValue(nowSecs));
+		glCallList(Sphere);
+	glPopMatrix();
 
+	glPushMatrix();
+		SetMaterial(Kred.GetValue(nowSecs), 0.f, Kgreen.GetValue(nowSecs), 10.f);
+		glTranslatef(-Xpos.GetValue(nowSecs), -Ypos.GetValue(nowSecs), -Zpos.GetValue(nowSecs));
+		glRotatef(TorusZ.GetValue(nowSecs), 0., 0., 1.);
+		glRotatef(TorusY.GetValue(nowSecs), 0., 1., 0.);
+		glCallList(Torus);
+	glPopMatrix();
 
+	SetMaterial( 0.f, Kred.GetValue(nowSecs), Kgreen.GetValue(nowSecs), 10.f);
+	glCallList(Sphere1);
+
+	glCallList(Sphere2);
 
 
 #ifdef DEMO_Z_FIGHTING
@@ -857,11 +887,97 @@ InitGraphics()
 	// but, this sets us up nicely for doing animation
 
 	glutIdleFunc(Animate);
-	Ypos.Init(); 
-	Ypos.AddTimeValue(0.0, 0.000); 
-	Ypos.AddTimeValue(2.0, 0.333); 
-	Ypos.AddTimeValue(1.0, 3.142); 
-	Ypos.AddTimeValue(0.5, 2.718);
+
+
+	Xpos.Init();
+	Ypos.Init();
+	Zpos.Init();
+	ThetaX.Init();
+	ThetaY.Init();
+	ThetaZ.Init();
+
+	float zrotate = 0.f;
+	float torusZ = 0.f;
+	float sphereY = 0.f;
+
+	for (float t = 0.0; t <= loopDuration; t += 1.0) 
+	{
+		float xpos = 20.0 * cos(t / loopDuration * 2 * M_PI);
+		float ypos = 20.0 * sin(2 * t / loopDuration * 2 * M_PI);
+		float zpos = 0.0 * sin(t / loopDuration * 2 * M_PI);
+
+		float xlook = xpos;
+		float ylook = ypos;
+		float zlook = zpos;
+
+		float xeye = xpos-8;
+		float yeye = ypos-8;
+		float zeye = zpos-40;
+
+		Xpos.AddTimeValue(t, xpos);
+		Ypos.AddTimeValue(t, ypos);
+		Zpos.AddTimeValue(t, zpos);
+
+		lookX.AddTimeValue(t, xlook);
+		lookY.AddTimeValue(t, ylook);
+		lookZ.AddTimeValue(t, zlook);
+
+		eyeX.AddTimeValue(t, xeye);
+		eyeY.AddTimeValue(t, yeye);
+		eyeZ.AddTimeValue(t, zeye);
+	}
+	
+	for (float t = 0.0; t <= loopDuration; t += 1.0)
+	{
+		// Calculate desired rotations (e.g., for orientation)
+		float xrotate = t * 36;
+
+		float torusY = t * 36;
+
+		float sphereX = 8.0 * cos(2.0f * M_PI * t / 2.f);
+		float sphereZ = 8.0 * sin(2.0f * M_PI * t / 2.f);
+
+
+		if (t<=5)
+		{			
+			zrotate = t * 36;
+			torusZ = -t * 36;
+			sphereY = zrotate;
+		}
+		else if (t > 5 && t <= 15)
+		{
+			zrotate = zrotate - 36;
+			torusZ = torusZ + 36;
+			sphereY = zrotate;
+		}
+		else
+		{
+			zrotate = zrotate + 36;
+			torusZ = torusZ - 36;
+			sphereY = zrotate;
+		}
+
+		ThetaX.AddTimeValue(t, xrotate);
+		ThetaZ.AddTimeValue(t, zrotate);
+
+		TorusY.AddTimeValue(t, torusY);
+		TorusZ.AddTimeValue(t, torusZ);
+
+		SphereX.AddTimeValue(t, sphereX);
+		SphereY.AddTimeValue(t, sphereY);
+		SphereZ.AddTimeValue(t, sphereZ);
+	}	 
+	
+	for (float t = 0; t <= loopDuration; t += 1)
+	{
+		float red = 0.5 * t;
+		float green = 0.5 * (20-t);
+		float blue = 0.5 * t;
+
+		Kred.AddTimeValue(t, red);
+		Kgreen.AddTimeValue(t, green);
+		Kblue.AddTimeValue(t, blue);
+	}
 
 	// init the glew package (a window must be open to do this):
 
@@ -917,11 +1033,40 @@ InitLists()
 	Spaceship = glGenLists(1);
 	glNewList(Spaceship, GL_COMPILE);
 	glPushMatrix();
-	SetMaterial(0.9f, 0.f, 0.2f, 10.f);
-	glTranslatef(-4.f, 2.2f, -4.f);
-	glScalef(0.02, 0.02, 0.02);
-	glRotatef(90.f, 0.f, 0.f, 1.f);
-	LoadObjFile((char*)"spaceship.obj");
+	glTranslatef(0.f, 2.2f, 0.f);
+	glScalef(0.8, 0.8, 0.8);
+	glRotatef(90.f, 1.f, 0.f, 0.f);
+	LoadObjFile((char*)"prometheus.obj");
+	glPopMatrix();
+	glEndList();
+
+	Sphere = glGenLists(1);
+	glNewList(Sphere, GL_COMPILE);
+	glPushMatrix();
+	OsuSphere(0.5,20,20);
+	glPopMatrix();
+	glEndList();
+
+	Sphere1 = glGenLists(1);
+	glNewList(Sphere1, GL_COMPILE);
+	glPushMatrix();
+	glTranslatef(-10.f, -3.f, 0.f);
+	OsuSphere(5, 20, 20);
+	glPopMatrix();
+	glEndList();
+
+	Sphere2 = glGenLists(1);
+	glNewList(Sphere2, GL_COMPILE);
+	glPushMatrix();
+	glTranslatef(10.f, -3.f, 0.f);
+	OsuSphere(5, 20, 20);
+	glPopMatrix();
+	glEndList();
+
+	Torus = glGenLists(1);
+	glNewList(Torus, GL_COMPILE);
+	glPushMatrix();
+	OsuTorus(1.0, 3.0, 20, 20);
 	glPopMatrix();
 	glEndList();
 
