@@ -196,6 +196,7 @@ int		DepthCueOn;				// != 0 means to use intensity depth cueing
 int		DepthBufferOn;			// != 0 means to use the z-buffer
 int		DepthFightingOn;		// != 0 means to force the creation of z-fighting
 GLuint	GridDL;				// object display list
+GLuint	GridDL1;
 GLuint	Spaceship;			// object display list
 GLuint	Sphere;
 GLuint	Sphere1;
@@ -210,12 +211,10 @@ int		NowColor;				// index into Colors[ ]
 int		NowProjection;		// ORTHO or PERSP
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
-GLfloat lightPosX = 0.0f; // Initial X position of the light
-GLfloat lightPosZ = 0.0f; // Initial Z position of the light
-GLfloat lightPosY = 15.0f;
 GLfloat lightType = GL_LIGHT0; // Initialize as point light
 GLfloat lightColor[] = { 1.0f, 1.0f, 1.0f, 1.0f }; // White color
 GLfloat lightAngle = 0.0f; // Angle for circular motion
+bool lookstate = 1;
 bool lightstate = 1;
 int shadetype = 0;
 
@@ -311,11 +310,14 @@ MulArray3(float factor, float a, float b, float c)
 #define MSEC 20000
 Keytimes Xpos, Ypos, Zpos;
 Keytimes ThetaX, ThetaY, ThetaZ;
-Keytimes SphereX, SphereY, SphereZ;
+Keytimes SphereX, SphereZ;
 Keytimes TorusX, TorusY, TorusZ;
 Keytimes Kred, Kgreen, Kblue;
 Keytimes lookX, lookY, lookZ;
 Keytimes eyeX, eyeY, eyeZ;
+Keytimes lsourceX, lsourceY, lsourceZ;
+Keytimes lydir;
+Keytimes ScaleX, ScaleY, ScaleZ;
 float loopDuration = 20.0;
 float totalDuration = 2 * loopDuration;
 
@@ -453,7 +455,11 @@ Display()
 	// set the eye position, look-at position, and up-vector:
 
 	//gluLookAt(6, 20, 30, 0, 0, 0, 0, 1, 0);
-	gluLookAt(eyeX.GetValue(nowSecs), eyeY.GetValue(nowSecs), eyeZ.GetValue(nowSecs), lookX.GetValue(nowSecs), lookY.GetValue(nowSecs), lookZ.GetValue(nowSecs), 0, 1, 0);
+	if (lookstate != 0)
+		gluLookAt(eyeX.GetValue(nowSecs), eyeY.GetValue(nowSecs), eyeZ.GetValue(nowSecs), lookX.GetValue(nowSecs), lookY.GetValue(nowSecs), lookZ.GetValue(nowSecs), 0, 1, 0);
+	else
+		gluLookAt(6, 20, 30, 0, 0, 0, 0, 1, 0);
+	
 
 	// rotate the scene:
 
@@ -491,50 +497,61 @@ Display()
 	}
 
 
-	if (lightstate != 0)
-		SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
-	else
-		SetSpotLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, 0.f, -3.f, 0.f, lightColor[0], lightColor[1], lightColor[2]);
-
 	glEnable(GL_NORMALIZE);
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
-	glEnable(GL_LIGHT1);
 
-	/*SetSpotLight(GL_LIGHT0, lightPosX, -lightPosY, lightPosZ, 0.f, 2.2f, 0.f, 0.9, 0.3, 0);
-	SetSpotLight(GL_LIGHT1, lightPosX, lightPosY, lightPosZ, 0.f, -2.2f, 0.f, 0.4,1,0.3);*/
-	SetSpotLight(GL_LIGHT1, lightPosX, lightPosY, lightPosZ, 0.f, -2.2f, 0.f, 0.4,1,0.3);
+	if (lightstate != 0)
+		SetPointLight(GL_LIGHT0, lsourceX.GetValue(nowSecs), lsourceY.GetValue(nowSecs), lsourceZ.GetValue(nowSecs), lightColor[0], lightColor[1], lightColor[2]);
+	else
+		SetSpotLight(GL_LIGHT0, lsourceX.GetValue(nowSecs), lsourceY.GetValue(nowSecs), lsourceZ.GetValue(nowSecs), 0, lydir.GetValue(nowSecs), 0, lightColor[0], lightColor[1], lightColor[2]);
+
+
 
 	glCallList(GridDL);
+	glCallList(GridDL1);
 
 	glPushMatrix(); 
-		SetMaterial(Kred.GetValue(nowSecs), Kgreen.GetValue(nowSecs), 0.f, 10.f);
+		SetMaterial(Kred.GetValue(nowSecs), 1, Kgreen.GetValue(nowSecs), 1.f);
 		glTranslatef(Xpos.GetValue(nowSecs), Ypos.GetValue(nowSecs), Zpos.GetValue(nowSecs));
 		glRotatef(ThetaZ.GetValue(nowSecs), 0., 0., 1.);
 		glRotatef(ThetaY.GetValue(nowSecs), 0., 1., 0.);
+		glScalef(ScaleX.GetValue(nowSecs), ScaleY.GetValue(nowSecs), ScaleZ.GetValue(nowSecs));
 		glCallList(Spaceship);
 	glPopMatrix();
 
 	glPushMatrix();
 		SetMaterial(Kred.GetValue(nowSecs), Kgreen.GetValue(nowSecs), Kblue.GetValue(nowSecs), 10.f);
-		glRotatef(atan2(SphereX.GetValue(nowSecs), SphereZ.GetValue(nowSecs)), 0., 1., 0.);
 		glTranslatef(SphereX.GetValue(nowSecs), 0, SphereZ.GetValue(nowSecs));
 		glTranslatef(Xpos.GetValue(nowSecs), Ypos.GetValue(nowSecs), Zpos.GetValue(nowSecs));
 		glCallList(Sphere);
 	glPopMatrix();
 
 	glPushMatrix();
-		SetMaterial(Kred.GetValue(nowSecs), 0.f, Kgreen.GetValue(nowSecs), 10.f);
-		glTranslatef(-Xpos.GetValue(nowSecs), -Ypos.GetValue(nowSecs), -Zpos.GetValue(nowSecs));
+		SetMaterial(Kred.GetValue(nowSecs), Kgreen.GetValue(nowSecs), 1, 10.f);
+		glTranslatef(Xpos.GetValue(nowSecs), -Ypos.GetValue(nowSecs), Zpos.GetValue(nowSecs));
 		glRotatef(TorusZ.GetValue(nowSecs), 0., 0., 1.);
 		glRotatef(TorusY.GetValue(nowSecs), 0., 1., 0.);
 		glCallList(Torus);
 	glPopMatrix();
 
-	SetMaterial( 0.f, Kred.GetValue(nowSecs), Kgreen.GetValue(nowSecs), 10.f);
+	
+	glPushMatrix();
+	SetMaterial(1, Kgreen.GetValue(nowSecs), Kred.GetValue(nowSecs), 5.f);
 	glCallList(Sphere1);
+	glPopMatrix();
 
+	glPushMatrix();
+	SetMaterial(1, Kgreen.GetValue(nowSecs), Kred.GetValue(nowSecs), 5.f);
 	glCallList(Sphere2);
+	glPopMatrix();
+
+	glPushMatrix();
+	glShadeModel(GL_SMOOTH);
+	glColor3fv(lightColor);
+	glTranslatef(lsourceX.GetValue(nowSecs), lsourceY.GetValue(nowSecs), lsourceZ.GetValue(nowSecs));
+	glCallList(LightSource);
+	glPopMatrix();
 
 
 #ifdef DEMO_Z_FIGHTING
@@ -895,6 +912,25 @@ InitGraphics()
 	ThetaX.Init();
 	ThetaY.Init();
 	ThetaZ.Init();
+	SphereX.Init();
+	SphereZ.Init();
+	lookX.Init();
+	lookY.Init();
+	lookZ.Init();
+	eyeX.Init();
+	eyeY.Init();
+	eyeZ.Init();
+	Kred.Init();
+	Kgreen.Init();
+	Kblue.Init();
+	lsourceX.Init();
+	lsourceY.Init();
+	lsourceZ.Init();
+	lydir.Init();
+	ScaleX.Init();
+	ScaleY.Init();
+	ScaleZ.Init();
+
 
 	float zrotate = 0.f;
 	float torusZ = 0.f;
@@ -910,9 +946,47 @@ InitGraphics()
 		float ylook = ypos;
 		float zlook = zpos;
 
-		float xeye = xpos-8;
-		float yeye = ypos-8;
-		float zeye = zpos-40;
+		float xeye = xpos;
+		float yeye = ypos;
+		float zeye = zpos + 40;
+
+
+		if (t>=1.f && t<=2.5f)
+		{
+			xeye = xpos - 8;
+			yeye = ypos - 8;
+		}
+		else if (t > 2.5f && t < 7.5f)
+		{
+			xeye = xpos + 8;
+			yeye = ypos + 8;
+			zeye = zpos;
+		}
+		else if(t >= 7.5f && t < 10.f)
+		{
+			xeye = xpos - 8;
+			yeye = ypos - 8;
+			zeye = zpos + 40;
+			
+		}
+		else if (t >= 10.f && t < 17.5f)
+		{
+			xeye = xpos + 8;
+			yeye = ypos + 8;
+			zeye = zpos;
+		}
+		else if (t >= 17.5f && t <= 19.f)
+		{
+			xeye = xpos - 8;
+			yeye = ypos - 8;
+			zeye = zpos + 20;
+		}
+		else
+		{
+			xeye = xpos + 8;
+			yeye = ypos + 8;
+			zeye = zpos + 20;
+		}
 
 		Xpos.AddTimeValue(t, xpos);
 		Ypos.AddTimeValue(t, ypos);
@@ -925,6 +999,7 @@ InitGraphics()
 		eyeX.AddTimeValue(t, xeye);
 		eyeY.AddTimeValue(t, yeye);
 		eyeZ.AddTimeValue(t, zeye);
+
 	}
 	
 	for (float t = 0.0; t <= loopDuration; t += 1.0)
@@ -934,9 +1009,10 @@ InitGraphics()
 
 		float torusY = t * 36;
 
-		float sphereX = 8.0 * cos(2.0f * M_PI * t / 2.f);
-		float sphereZ = 8.0 * sin(2.0f * M_PI * t / 2.f);
+		float sphereX = 5.0 * cos(2.0f * M_PI * t / 5.f);
+		float sphereZ = -5.0 * sin(2.0f * M_PI * t / 5.f);
 
+		
 
 		if (t<=5)
 		{			
@@ -964,8 +1040,9 @@ InitGraphics()
 		TorusZ.AddTimeValue(t, torusZ);
 
 		SphereX.AddTimeValue(t, sphereX);
-		SphereY.AddTimeValue(t, sphereY);
 		SphereZ.AddTimeValue(t, sphereZ);
+
+		
 	}	 
 	
 	for (float t = 0; t <= loopDuration; t += 1)
@@ -977,7 +1054,78 @@ InitGraphics()
 		Kred.AddTimeValue(t, red);
 		Kgreen.AddTimeValue(t, green);
 		Kblue.AddTimeValue(t, blue);
+
 	}
+
+	lsourceX.AddTimeValue(0, 20);
+	lsourceY.AddTimeValue(0, 20);
+	lsourceZ.AddTimeValue(0, 5);
+	lydir.AddTimeValue(0, -2.2f);
+
+	lsourceX.AddTimeValue(5, 0);
+	lsourceY.AddTimeValue(5, 20);
+	lsourceZ.AddTimeValue(5, -5);
+	lydir.AddTimeValue(5, -2.2f);
+
+
+	lsourceX.AddTimeValue(7.5, -10);
+	lsourceY.AddTimeValue(7.5, -20);
+	lsourceZ.AddTimeValue(7.5, 5);
+	lydir.AddTimeValue(7.5, 1.f);
+
+	lsourceX.AddTimeValue(10, -20);
+	lsourceY.AddTimeValue(10, 20);
+	lsourceZ.AddTimeValue(10, -5);
+	lydir.AddTimeValue(10, -2.2f);
+
+	lsourceX.AddTimeValue(12.5, -10);
+	lsourceY.AddTimeValue(12.5, 20);
+	lsourceZ.AddTimeValue(12.5, 5);
+	lydir.AddTimeValue(12.5, -2.2f);
+
+	lsourceX.AddTimeValue(15, 0);
+	lsourceY.AddTimeValue(15, 20);
+	lsourceZ.AddTimeValue(15, -5);
+	lydir.AddTimeValue(15, -2.2f);
+
+	lsourceX.AddTimeValue(17.5, 10);
+	lsourceY.AddTimeValue(17.5, -20);
+	lsourceZ.AddTimeValue(17.5, 5);
+	lydir.AddTimeValue(17.5, 1.f);
+
+	lsourceX.AddTimeValue(20, 20);
+	lsourceY.AddTimeValue(20, 20);
+	lsourceZ.AddTimeValue(20, -5);
+	lydir.AddTimeValue(20, -2.2f);
+
+	ScaleX.AddTimeValue(0, 1);
+	ScaleY.AddTimeValue(0, 1);
+	ScaleZ.AddTimeValue(0, 1);
+
+	ScaleX.AddTimeValue(5, 0.5);
+	ScaleY.AddTimeValue(5, 0.5);
+	ScaleZ.AddTimeValue(5, 0.5);
+
+	ScaleX.AddTimeValue(7.5, 1.5);
+	ScaleY.AddTimeValue(7.5, 1.5);
+	ScaleZ.AddTimeValue(7.5, 1.5);
+
+	ScaleX.AddTimeValue(10, 0.5);
+	ScaleY.AddTimeValue(10, 0.5);
+	ScaleZ.AddTimeValue(10, 0.5);
+
+	ScaleX.AddTimeValue(12.5, 1.5);
+	ScaleY.AddTimeValue(12.5, 1.5);
+	ScaleZ.AddTimeValue(12.5, 1.5);
+
+	ScaleX.AddTimeValue(15, 0.5);
+	ScaleY.AddTimeValue(15, 0.5);
+	ScaleZ.AddTimeValue(15, 0.5);
+
+	ScaleX.AddTimeValue(20, 1);
+	ScaleY.AddTimeValue(20, 1);
+	ScaleZ.AddTimeValue(20, 1);
+
 
 	// init the glew package (a window must be open to do this):
 
@@ -1029,6 +1177,24 @@ InitLists()
 	glPopMatrix();
 	glEndList();
 
+	GridDL1 = glGenLists(1);
+	glNewList(GridDL1, GL_COMPILE);
+	glPushMatrix();
+	SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
+	glNormal3f(0., -1., 0.);
+	for (int i = 0; i < NZ; i++)
+	{
+		glBegin(GL_QUAD_STRIP);
+		for (int j = 0; j < NX; j++)
+		{
+			glVertex3f(X0 + DX * (float)j, YGRID - 1, Z0 + DZ * (float)(i + 0));
+			glVertex3f(X0 + DX * (float)j, YGRID - 1, Z0 + DZ * (float)(i + 1));
+		}
+		glEnd();
+	}
+	glPopMatrix();
+	glEndList();
+
 
 	Spaceship = glGenLists(1);
 	glNewList(Spaceship, GL_COMPILE);
@@ -1070,6 +1236,14 @@ InitLists()
 	glPopMatrix();
 	glEndList();
 
+	LightSource = glGenLists(1);
+	glNewList(LightSource, GL_COMPILE);
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+	OsuSphere(0.2, 10, 10); // Draw a small sphere
+	glPopMatrix();
+	glEndList();
+
 	// create the axes:
 	AxesList = glGenLists(1);
 	glNewList(AxesList, GL_COMPILE);
@@ -1099,6 +1273,14 @@ Keyboard(unsigned char c, int x, int y)
 	case 'S':
 	case 's':
 		lightstate = 0;
+		break;
+	case 'Z':
+	case 'z':
+		lookstate = 1;
+		break;
+	case 'X':
+	case 'x':
+		lookstate = 0;
 		break;
 	case 'W':
 	case 'w':
