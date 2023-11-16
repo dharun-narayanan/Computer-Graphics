@@ -202,6 +202,7 @@ GLfloat lightPosY = 5.0f;
 GLfloat lightAngle = 0.0f;
 GLfloat lightColor[] = { 1.0f, 1.0f, 1.0f, 1.0f }; 
 GLfloat radius = 2;
+GLint lightState = 1;
 
 
 
@@ -485,20 +486,27 @@ Display()
 
 	if (useTexture == 1) {
 		glEnable(GL_TEXTURE_2D);
-		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	}
 	else if (useTexture == 2) {
 		glEnable(GL_TEXTURE_2D);
-		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	}
 	else {
-		glDisable(GL_TEXTURE_2D);
-		glDisable(GL_LIGHTING);
+		glDisable(GL_TEXTURE_2D);	
 	}
+
+	if (lightState == 1)
+	{
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT0);
+	}
+	else
+	{
+		glDisable(GL_LIGHTING);
+		glDisable(GL_LIGHT0);
+	}
+
 
 	glCallList(Planets[NowPlanet].displayList);
 
@@ -1032,6 +1040,11 @@ Keyboard(unsigned char c, int x, int y)
 	case 't':
 	case 'T':
 		useTexture = (useTexture + 1) % 3;
+		break;
+
+	case 'l':
+	case 'L':
+		lightState = (lightState + 1) % 2;
 		break;
 
 	default:
