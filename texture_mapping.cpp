@@ -57,7 +57,7 @@ const int ESCAPE = 0x1b;
 
 // initial window size:
 
-const int INIT_WINDOW_SIZE = 1000;
+const int INIT_WINDOW_SIZE = 600;
 
 // size of the 3d box to be drawn:
 
@@ -191,16 +191,16 @@ int		ShadowsOn;				// != 0 means to turn shadows on
 float	Time;					// used for animation, this has a value between 0. and 1.
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
-GLuint	SphereDL, Orbit;		// display lists	
+GLuint	SphereDL, MarsDL;		// display lists	
 GLint useTexture = 0;
 int NowPlanet = 1;
-GLuint planetTexture[8];
+GLuint plantTexture[7];
 GLuint	LightSource;
-GLfloat lightPosX = 0.0f;
-GLfloat lightPosZ = 0.0f;
+GLfloat lightPosX = 0.0f; 
+GLfloat lightPosZ = 0.0f; 
 GLfloat lightPosY = 5.0f;
 GLfloat lightAngle = 0.0f;
-GLfloat lightColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+GLfloat lightColor[] = { 1.0f, 1.0f, 1.0f, 1.0f }; 
 GLfloat radius = 2;
 GLint lightState = 1;
 
@@ -238,41 +238,25 @@ float			Dot(float[3], float[3]);
 float			Unit(float[3], float[3]);
 float			Unit(float[3]);
 
-struct planet {
+struct planet
+{
 	char* name;
 	char* file;
-	float scale;
-	int displayList;
-	char key;
-	unsigned int texObject;
-	float orbitalRadius; // New parameter for elliptical orbit
+	float                   scale;
+	int                     displayList;
+	char                    key;
+	unsigned int            texObject;
 };
 
-struct orbit {
-	char* name;
-	int displayList;
-};
-
-struct orbit Orbits[] = {
-	{"Sun", 0},
-	{"Venus", 0},
-	{"Earth", 0},
-	{"Mars",  0},
-	{"Jupiter", 0},
-	{"Saturn", 0},
-	{"Uranus", 0},
-	{"Neptune", 0},
-};
-
-struct planet Planets[] = {
-	{"Sun", "sun.bmp", 30.0f, 0, 's', 0, 0.0f},
-	{"Venus", "venus.bmp", 0.95f, 0, 'v', 0, 70.0f},
-	{"Earth", "earth.bmp", 1.00f, 0, 'e', 0, 100.0f},
-	{"Mars", "mars.bmp", 0.53f, 0, 'm', 0, 130.0f},
-	{"Jupiter", "jupiter.bmp", 11.21f, 0, 'j', 0, 200.0f},
-	{"Saturn", "saturn.bmp", 9.45f, 0, 's', 0, 280.0f},
-	{"Uranus", "uranus.bmp", 4.01f, 0, 'u', 0, 360.0f},
-	{"Neptune", "neptune.bmp", 3.88f, 0, 'n', 0, 430.0f},
+struct planet Planets[] =
+{
+		{ "Venus",      "venus.bmp",     0.95f, 0, 'v', 0 },
+		{ "Earth",      "earth.bmp",     1.00f, 0, 'e', 0 },
+		{ "Mars",       "mars.bmp",      0.53f, 0, 'm', 0 },
+		{ "Jupiter",    "jupiter.bmp",  11.21f, 0, 'j', 0 },
+		{ "Saturn",     "saturn.bmp",    9.45f, 0, 's', 0 },
+		{ "Uranus",     "uranus.bmp",    4.01f, 0, 'u', 0 },
+		{ "Neptune",    "neptune.bmp",   3.88f, 0, 'n', 0 },
 };
 
 const int NUMPLANETS = sizeof(Planets) / sizeof(struct planet);
@@ -381,7 +365,6 @@ main(int argc, char* argv[])
 //
 // do not call Display( ) from here -- let glutPostRedisplay( ) do it
 
-
 void
 Animate()
 {
@@ -410,7 +393,6 @@ Animate()
 void
 Display()
 {
-	float t = ElapsedSeconds();
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting Display.\n");
 
@@ -451,7 +433,7 @@ Display()
 	if (NowProjection == ORTHO)
 		glOrtho(-2.f, 2.f, -2.f, 2.f, 0.1f, 1000.f);
 	else
-		gluPerspective(80.f, 1.f, 0.1f, 1000.f);
+		gluPerspective(70.f, 1.f, 0.1f, 1000.f);
 
 	// place the objects into the scene:
 
@@ -460,7 +442,7 @@ Display()
 
 	// set the eye position, look-at position, and up-vector:
 
-	gluLookAt(250.f, 0.f, 100.f, 30.f, 0.f, 0.f, 0.f, 1.f, 0.f);
+	gluLookAt(0.f, 0.f, 3.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
 
 	// rotate the scene:
 
@@ -473,6 +455,7 @@ Display()
 		Scale = MINSCALE;
 	glScalef((GLfloat)Scale, (GLfloat)Scale, (GLfloat)Scale);
 
+	SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
 	// set the fog parameters:
 
 	if (DepthCueOn != 0)
@@ -501,7 +484,7 @@ Display()
 
 	glEnable(GL_NORMALIZE);
 
-	/*if (useTexture == 1) {
+	if (useTexture == 1) {
 		glEnable(GL_TEXTURE_2D);
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	}
@@ -510,7 +493,7 @@ Display()
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	}
 	else {
-		glDisable(GL_TEXTURE_2D);
+		glDisable(GL_TEXTURE_2D);	
 	}
 
 	if (lightState == 1)
@@ -522,68 +505,18 @@ Display()
 	{
 		glDisable(GL_LIGHTING);
 		glDisable(GL_LIGHT0);
-	}*/
-
-	glDisable(GL_LIGHTING);
-	glDisable(GL_LIGHT0);
-	glEnable(GL_TEXTURE_2D);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-
-	
-
-	glPushMatrix();
-	glTranslatef(0.f, 0.f, 0.f);
-	glCallList(Planets[0].displayList);
-	glPopMatrix();
-
-
-	for (int i = 1; i < NUMPLANETS; i++)
-	{
-		glPushMatrix();
-		glTranslatef(Planets[i].orbitalRadius * cos(Planets[i].orbitalRadius * F_PI * t / 240.0f), 0.0f, Planets[i].orbitalRadius * sin(Planets[i].orbitalRadius * F_PI * t / 240.0f));
-		glCallList(Planets[i].displayList);
-		glPopMatrix();
-
-		glPushMatrix();
-		glCallList(Orbits[i].displayList);
-		glPopMatrix();
 	}
 
-	/*glPushMatrix();
-	glTranslatef(60.f + 10.f * 0.52f, 0.f, 0.f);
-	glTranslatef(Planets[1].orbitalRadius * cos(Planets[1].orbitalRadius * F_PI * t / 60.0f), 0.0f, Planets[1].orbitalRadius * sin(Planets[1].orbitalRadius * F_PI * t / 60.0f));
-	glCallList(Planets[1].displayList);
-	glPopMatrix();
+
+	glCallList(Planets[NowPlanet].displayList);
 
 	glPushMatrix();
-	glTranslatef(Planets[2].orbitalRadius * cos(Planets[2].orbitalRadius * F_PI * t / 60.0f), 0.0f, Planets[2].orbitalRadius * sin(Planets[2].orbitalRadius * F_PI * t / 60.0f));
-	glCallList(Planets[2].displayList);
+	glDisable(GL_TEXTURE_2D);
+	glShadeModel(GL_SMOOTH);
+	glColor3fv(lightColor);
+	glTranslatef(lightPosX, lightPosY, lightPosZ);
+	glCallList(LightSource);
 	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(60.f + 10.f * 1.42f, 0.f, 0.f);
-	glCallList(Planets[3].displayList);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(60.f + 10.f * 5.10f, 0.f, 0.f);
-	glCallList(Planets[4].displayList);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(60.f + 10.f * 11.44f, 0.f, 0.f);
-	glCallList(Planets[5].displayList);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(60.f + 10.f * 15.08f, 0.f, 0.f);
-	glCallList(Planets[6].displayList);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(60.f + 10.f * 21.06f, 0.f, 0.f);
-	glCallList(Planets[7].displayList);
-	glPopMatrix();*/
 
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_LIGHTING);
@@ -945,7 +878,7 @@ InitGraphics()
 
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
 
-
+	
 
 	int width, height;
 	char* file;
@@ -961,8 +894,8 @@ InitGraphics()
 		else
 			fprintf(stderr, "Opened '%s': width = %d ; height = %d\n", file, width, height);
 
-		glGenTextures(1, &planetTexture[i]);
-		glBindTexture(GL_TEXTURE_2D, planetTexture[i]);
+		glGenTextures(1, &plantTexture[i]);
+		glBindTexture(GL_TEXTURE_2D, plantTexture[i]);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -971,7 +904,7 @@ InitGraphics()
 		glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture);
 
 	}
-
+	
 
 }
 
@@ -997,30 +930,26 @@ InitLists()
 	SphereDL = glGenLists(1);
 	glColor3f(1.f, 1.f, 1.f);
 	glNewList(SphereDL, GL_COMPILE);
-	OsuSphere(2., 100, 100);
+	OsuSphere(1., 100, 100);
 	glEndList();
 
-	for (int i = 1; i < NUMPLANETS; i++)
-	{
-		Orbits[i].displayList = glGenLists(1);
-		glNewList(Orbits[i].displayList, GL_COMPILE);
-		glBegin(GL_LINE_LOOP);
-		for (int j = 0; j < 360; j++) {
-			float angle = j * F_PI / 180.0f;
-			glVertex3f(Planets[i].orbitalRadius * cos(angle), 0.0f, Planets[i].orbitalRadius * sin(angle));
-		}
-		glEnd();
-		glEndList();
-	}
+	LightSource = glGenLists(1);
+	glNewList(LightSource, GL_COMPILE);
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+	OsuSphere(0.2, 30, 30); 
+	glPopMatrix();
+	glEndList();
+
 
 	for (int i = 0; i < NUMPLANETS; i++)
 	{
 		Planets[i].displayList = glGenLists(1);
 		glNewList(Planets[i].displayList, GL_COMPILE);
-		glBindTexture(GL_TEXTURE_2D, planetTexture[i]);
+		glBindTexture(GL_TEXTURE_2D, plantTexture[i]);	
 		glPushMatrix();
-		glScalef(Planets[i].scale, Planets[i].scale, Planets[i].scale);
-		glCallList(SphereDL);
+		glScalef(Planets[i].scale, Planets[i].scale, Planets[i].scale);	
+		glCallList(SphereDL);		
 		glPopMatrix();
 		glEndList();
 
@@ -1077,7 +1006,7 @@ Keyboard(unsigned char c, int x, int y)
 		NowPlanet = 1;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
-
+	
 	case 'm':
 	case 'M':
 		NowPlanet = 2;
@@ -1107,7 +1036,7 @@ Keyboard(unsigned char c, int x, int y)
 		NowPlanet = 6;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
-
+		
 	case 't':
 	case 'T':
 		useTexture = (useTexture + 1) % 3;
