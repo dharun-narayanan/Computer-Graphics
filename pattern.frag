@@ -9,7 +9,7 @@ uniform float   uShininess;	 // specular exponent
 
 // square-equation uniform variables -- these should be set every time Display( ) is called:
 
-uniform float   uS0, uT0, uD;
+uniform float   uS0, uT0, uRs, uRt;
 
 // in variables from the vertex shader and interpolated in the rasterizer:
 
@@ -22,22 +22,22 @@ in  vec2  vST;		   // (s,t) texture coordinates
 void
 main( )
 {
-	float s = vST.s;
+		float s = vST.s;
 	float t = vST.t;
 
 	// determine the color using the square-boundary equations:
 
 	vec3 myColor = uColor;
-	if( uS0-uD/2. <= s  &&  s <= uS0+uD/2.  &&  uT0-uD/2. <= t  &&  t <= uT0+uD/2. )
+	if( ((s - uS0)*(s - uS0)/((uRs*uRs)/4.)) + ((t - uT0)*(t - uT0)/((uRt*uRt)/4.)) <= 1 )
 	{
-		myColor = vec3( 1., 0., 0. );;
+		myColor = vec3( 0.6, 1.0, 0.1 );
 	}
-
-	// apply the per-fragmewnt lighting to myColor:
 
 	vec3 Normal = normalize(vN);
 	vec3 Light  = normalize(vL);
 	vec3 Eye    = normalize(vE);
+
+	// apply the per-fragment lighting to myColor:
 
 	vec3 ambient = uKa * myColor;
 
