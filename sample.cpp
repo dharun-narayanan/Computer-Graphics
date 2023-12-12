@@ -179,7 +179,7 @@ const int MS_PER_CYCLE = 10000;		// 10000 milliseconds = 10 seconds
 int		ActiveButton;			// current button that is down
 GLuint	AxesList;				// list to hold the axes
 int		AxesOn;					// != 0 means to draw the axes
-GLuint	StarList;				// object display list
+GLuint	StarList, MeteorList;				// object display list
 int		DebugOn;				// != 0 means to print debugging info
 int		DepthCueOn;				// != 0 means to use intensity depth cueing
 int		DepthBufferOn;			// != 0 means to use the z-buffer
@@ -192,10 +192,10 @@ int		ShadowsOn;				// != 0 means to turn shadows on
 float	Time;					// used for animation, this has a value between 0. and 1.
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
-GLuint	SphereDL, Orbit;		// display lists	
+GLuint	SphereDL, SphereDL1, Orbit;		// display lists	
 GLuint	StarsTex;
 GLint useTexture = 0;
-int NowPlanet = 1;
+int NowPlanet = 0;
 GLuint planetTexture[8];
 GLuint	LightSource;
 GLfloat lightPosX = 0.0f;
@@ -204,7 +204,9 @@ GLfloat lightPosY = 0.0f;
 GLfloat lightAngle = 0.0f;
 GLfloat lightColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 GLfloat radius = 2;
-GLint lightState = 1;
+GLint lightState = 0;
+GLint rotatestate = 0;
+bool Frozen;
 
 
 
@@ -257,6 +259,7 @@ struct orbit {
 };
 
 const int NUM_ASTEROIDS = 1000;
+
 struct asteroid {
 	float scale;
 	float orbitalRadius;
@@ -277,17 +280,6 @@ struct orbit Orbits[] = {
 	{"Uranus", 0},
 	{"Neptune", 0},
 };
-
-//struct planet planets[] = {
-//	{"sun", "sun.bmp", 30.0f, 0, 's', 0, 0.0f},
-//	{"venus", "venus.bmp", 0.95f, 0, 'v', 0, 70.0f},
-//	{"earth", "earth.bmp", 1.00f, 0, 'e', 0, 100.0f},
-//	{"mars", "mars.bmp", 0.53f, 0, 'm', 0, 130.0f},
-//	{"jupiter", "jupiter.bmp", 11.21f, 0, 'j', 0, 200.0f},
-//	{"saturn", "saturn.bmp", 9.45f, 0, 's', 0, 280.0f},
-//	{"uranus", "uranus.bmp", 4.01f, 0, 'u', 0, 360.0f},
-//	{"neptune", "neptune.bmp", 3.88f, 0, 'n', 0, 430.0f},
-//};
 
 struct planet {
 	char* name;
@@ -314,11 +306,21 @@ struct planet Planets[] = {
 	{"Neptune", "neptune.bmp", 3.88f, 0, 'n', 0, 430.0f, 280.0f, 60182.0f, 5.43f, 0.0f},
 };
 
-
-
 const int NUMPLANETS = sizeof(Planets) / sizeof(struct planet);
 
+struct meteor {
+	float x;
+	float y;
+	float speed;
+	float angle;
+};
 
+struct meteor Meteor = {
+	Planets[7].orbitalRadius,  // Start from Neptune's orbit
+	0.0f,
+	10.0f,
+	180.0f,  // Initial angle
+};
 
 // utility to create an array from 3 separate values:
 
@@ -375,6 +377,8 @@ MulArray3(float factor, float a, float b, float c)
 //#include "glslprogram.cpp"
 
 
+
+
 // main program:
 
 int
@@ -423,6 +427,12 @@ main(int argc, char* argv[])
 //
 // do not call Display( ) from here -- let glutPostRedisplay( ) do it
 
+void updateMeteorPosition() {
+	// Move the meteor along its path
+	Meteor.x += Meteor.speed * cos(Meteor.angle);
+	Meteor.y += Meteor.speed * sin(Meteor.angle);
+}
+
 void AnimateAsteroids() {
 	for (int i = 0; i < NUM_ASTEROIDS; i++) {
 		Asteroids[i].angle += F_PI / (Asteroids[i].orbitalRadius * 0.5f); // Adjust the speed for a more realistic motion
@@ -430,6 +440,7 @@ void AnimateAsteroids() {
 			Asteroids[i].angle -= F_2_PI;
 	}
 }
+
 
 
 void
@@ -451,6 +462,7 @@ Animate()
 
 	//lightPosY = 2.f * sin(lightAngle);
 	AnimateAsteroids();
+	updateMeteorPosition();
 
 	glutSetWindow(MainWindow);
 	glutPostRedisplay();
@@ -511,9 +523,26 @@ Display()
 	glLoadIdentity();
 
 	// set the eye position, look-at position, and up-vector:
+	if (NowPlanet == 0)
+		gluLookAt(500.f, 275.f, 150.f, 30.f, 0.f, 0.f, 0.f, 1.f, 0.f);
+	else if(NowPlanet == 1)
+		gluLookAt((Planets[NowPlanet].orbitalRadius + 10.f) * cos(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0.0f, (Planets[NowPlanet].orbitalRadius + 10.f) * sin(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0, 0 ,0, 0, 1, 0);
+	else if (NowPlanet == 2)
+		gluLookAt((Planets[NowPlanet].orbitalRadius + 10.f) * cos(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0.0f, (Planets[NowPlanet].orbitalRadius + 10.f) * sin(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0, 0, 0, 0, 1, 0);
+	else if (NowPlanet == 3)
+		gluLookAt((Planets[NowPlanet].orbitalRadius + 10.f) * cos(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0.0f, (Planets[NowPlanet].orbitalRadius + 10.f) * sin(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0, 0, 0, 0, 1, 0);
+	else if (NowPlanet == 4)
+		gluLookAt((Planets[NowPlanet].orbitalRadius + 10.f) * cos(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0.0f, (Planets[NowPlanet].orbitalRadius + 10.f) * sin(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0, 0, 0, 0, 1, 0);
+	else if (NowPlanet == 5)
+		gluLookAt((Planets[NowPlanet].orbitalRadius + 10.f) * cos(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0.0f, (Planets[NowPlanet].orbitalRadius + 10.f) * sin(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0, 0, 0, 0, 1, 0);
+	else if (NowPlanet == 6)
+		gluLookAt((Planets[NowPlanet].orbitalRadius + 10.f) * cos(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0.0f, (Planets[NowPlanet].orbitalRadius + 10.f) * sin(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0, 0, 0, 0, 1, 0);
+	else if (NowPlanet == 7)
+		gluLookAt((Planets[NowPlanet].orbitalRadius + 10.f) * cos(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0.0f, (Planets[NowPlanet].orbitalRadius + 10.f) * sin(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0, 0, 0, 0, 1, 0);
+	else if (NowPlanet == 8)
+		gluLookAt((Planets[NowPlanet].orbitalRadius + 10.f) * cos(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0.0f, (Planets[NowPlanet].orbitalRadius + 10.f) * sin(Planets[NowPlanet].orbitalRadius * F_PI * t / 240.0f), 0, 0, 0, 0, 1, 0);
 
-	gluLookAt(250.f, 0.f, 100.f, 30.f, 0.f, 0.f, 0.f, 1.f, 0.f);
-
+		
 	// rotate the scene:
 
 	glRotatef((GLfloat)Yrot, 0.f, 1.f, 0.f);
@@ -580,6 +609,7 @@ Display()
 	{
 		glEnable(GL_LIGHTING);
 		glEnable(GL_LIGHT0);
+		SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
 	}
 	else
 	{
@@ -587,12 +617,17 @@ Display()
 		glDisable(GL_LIGHT0);
 	}
 
-	SetPointLight(GL_LIGHT0, lightPosX, lightPosY, lightPosZ, lightColor[0], lightColor[1], lightColor[2]);
-
-	glEnable(GL_TEXTURE_2D);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-
+	if (useTexture == 1) {
+		glEnable(GL_TEXTURE_2D);
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+	}
+	else if (useTexture == 2) {
+		glEnable(GL_TEXTURE_2D);
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	}
+	else {
+		glDisable(GL_TEXTURE_2D);
+	}
 
 	glPushMatrix();
 	glTranslatef(0.f, 0.f, 0.f);
@@ -616,10 +651,15 @@ Display()
 		glPopMatrix();
 
 		glPushMatrix();
-		glColor3f(1.f, 1.f, 1.f);
+		SetMaterial(1.f, 1.f, 1.f, 1.f);
 		glCallList(Orbits[i].displayList);
 		glPopMatrix();
 	}
+
+	/*glPushMatrix();
+	glTranslatef((Planets[3].currentOrbitAngle * cos(Planets[3].currentOrbitAngle)) + (20.0 * cos(13 * t)), 0, (Planets[3].currentOrbitAngle * sin(Planets[3].currentOrbitAngle)) + (20.0 * sin(13 * t)));
+	glCallList(SphereDL1);
+	glPopMatrix();*/
 
 	for (int i = 0; i < NUM_ASTEROIDS; i++) 
 	{
@@ -631,7 +671,12 @@ Display()
 		glPopMatrix();
 	}
 
-	//glCallList(StarList);
+	/*glPushMatrix();
+	glTranslatef(Meteor.y, 0.0, Meteor.x);
+	glCallList(MeteorList);
+	glPopMatrix();*/
+
+	glCallList(StarList);
 
 
 	glDisable(GL_TEXTURE_2D);
@@ -1066,11 +1111,17 @@ InitLists()
 	OsuSphere(2., 100, 100);
 	glEndList();
 
+	SphereDL1 = glGenLists(1);
+	glColor3f(1.f, 1.f, 1.f);
+	glNewList(SphereDL1, GL_COMPILE);
+	OsuSphere(2., 100, 100);
+	glEndList();
+
 	for (int i = 1; i < NUMPLANETS; i++)
 	{
 		Orbits[i].displayList = glGenLists(1);
 		glNewList(Orbits[i].displayList, GL_COMPILE);
-		glLineWidth(5);
+		glLineWidth(2);
 		glPushMatrix();
 		glColor3f(1.f, 1.f, 1.f);
 		glBegin(GL_LINE_LOOP);	
@@ -1098,8 +1149,8 @@ InitLists()
 
 	for (int i = 0; i < NUM_ASTEROIDS; i++) {
 		Asteroids[i].scale = ((float)rand() / RAND_MAX) * 0.5f + 0.2f; // Random scale between 0.2 and 0.7
-		Asteroids[i].orbitalRadius = ((float)rand() / RAND_MAX) * 50.0f + 130.0f; // Random radius between 130 and 180
-		Asteroids[i].rotationSpeed = ((float)rand() / RAND_MAX) * 50.0f + 20.0f; // Random rotation speed between 1 and 6
+		Asteroids[i].orbitalRadius = ((float)rand() / RAND_MAX) * 30.0f + 140.0f; 
+		Asteroids[i].rotationSpeed = ((float)rand() / RAND_MAX) * 50.0f + 20.0f; 
 		Asteroids[i].angle = ((float)rand() / RAND_MAX) * F_2_PI; // Random initial angle
 		Asteroids[i].displayList = glGenLists(1);
 
@@ -1112,14 +1163,18 @@ InitLists()
 	glNewList(StarList, GL_COMPILE);
 	glBindTexture(GL_TEXTURE_2D, StarsTex);
 	glPushMatrix();
-	glScalef(100, 100, 100);
+	glScalef(6000, 6000, 6000);
 	glCallList(SphereDL);
 	glPopMatrix();
 	glEndList();
 
-
-
-
+	MeteorList = glGenLists(1);
+	glNewList(MeteorList, GL_COMPILE);
+	glColor3f(1.0, 0.0, 0.0);  // Red color for the meteor
+	glPushMatrix();
+	OsuSphere(1.0, 20, 20);  
+	glPopMatrix();
+	glEndList;
 
 	// create the axes:
 
@@ -1154,6 +1209,15 @@ Keyboard(unsigned char c, int x, int y)
 		NowProjection = PERSP;
 		break;
 
+	case 'f':
+	case 'F':
+		Frozen = !Frozen;
+		if (Frozen)
+			glutIdleFunc(NULL);
+		else
+			glutIdleFunc(Animate);
+		break;
+
 	case 'q':
 	case 'Q':
 	case ESCAPE:
@@ -1162,43 +1226,43 @@ Keyboard(unsigned char c, int x, int y)
 
 	case 'v':
 	case 'V':
-		NowPlanet = 0;
+		NowPlanet = 1;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
 
 	case 'e':
 	case 'E':
-		NowPlanet = 1;
+		NowPlanet = 2;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
 
 	case 'm':
 	case 'M':
-		NowPlanet = 2;
+		NowPlanet = 3;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
 
 	case 'j':
 	case 'J':
-		NowPlanet = 3;
+		NowPlanet = 4;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
 
 	case 's':
 	case 'S':
-		NowPlanet = 4;
+		NowPlanet = 5;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
 
 	case 'u':
 	case 'U':
-		NowPlanet = 5;
+		NowPlanet = 6;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
 
 	case 'n':
 	case 'N':
-		NowPlanet = 6;
+		NowPlanet = 7;
 		radius = Planets[NowPlanet].scale + 10.f;
 		break;
 
@@ -1211,6 +1275,15 @@ Keyboard(unsigned char c, int x, int y)
 	case 'L':
 		lightState = (lightState + 1) % 2;
 		break;
+
+	case 'Z':
+	case 'z':
+		NowPlanet = 0;
+		break;
+
+	case 'R':
+	case 'r':
+		rotatestate = (rotatestate + 1) % 2;
 
 	default:
 		fprintf(stderr, "Don't know what to do with keyboard hit: '%c' (0x%0x)\n", c, c);
@@ -1335,7 +1408,8 @@ Reset()
 	NowColor = YELLOW;
 	NowProjection = PERSP;
 	Xrot = Yrot = 0.;
-	NowPlanet = 1;
+	NowPlanet = 0;
+	Frozen = false;
 }
 
 
